@@ -5,3 +5,5 @@ tests
 __pycache__
 *.md
 compose.yaml
+docs/screenshots
+docs/icon.svg

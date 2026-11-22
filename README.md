@@ -1,8 +1,17 @@
+<p align="center"><img src="docs/icon.svg" width="96" alt="QuickShot icon"></p>
+
 # QuickShot: an endless feed of your own clips
 
 An [AirplaneMode](https://github.com/jessewolcott/airplanemode) app. QuickShot plays the short
 videos in [Drop](https://github.com/jessewolcott/airplanemode-drop)'s **QuickShot** folder as a
 full-screen vertical feed you swipe through, on every phone on the hotspot, with no internet.
+
+<p align="center">
+  <img src="docs/screenshots/feed.png" width="230" alt="The feed: swipe, double-tap to like">
+  <img src="docs/screenshots/comments.png" width="230" alt="Comments, shared with everyone on the hotspot">
+</p>
+
+<sub>Screenshots from the laptop dev stack; not yet tested on real hardware.</sub>
 
 - **Swipe forever.** Clips you haven't seen come first (newest first), then everything,
   shuffled; when it runs out it reshuffles, avoiding the ones you just watched.
