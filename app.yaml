@@ -1,0 +1,17 @@
+# AirplaneMode app manifest. See the platform repo: docs/app-contract.md
+id: quickshot
+name: QuickShot
+description: An endless feed of the short videos in Drop's QuickShot folder, with likes and comments shared across the hotspot.
+image: ghcr.io/jessewolcott/airplanemode-quickshot
+port: 8000
+path: /quickshot/
+memory: 64m           # clips stream from Drop straight to the browser
+volume: /data         # comments, likes and views (stats.json, comments.json): keep it on a named volume
+needs:
+  llm: none
+  apps: [drop]        # the clips are the videos in Drop's QuickShot folder
+env:
+  DROP_URL: Drop's API inside the stack (default http://drop:8000).
+  DROP_PATH: Where the browser streams from (default ../drop/).
+  QUICKSHOT_FOLDER: The top-level Drop folder to play (default QuickShot).
+  ADMIN_URL: The platform's admin service (http://admin:8000); the admin can delete any comment.

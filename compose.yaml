@@ -1,0 +1,29 @@
+# Standalone development: QuickShot plus Drop (built from ../airplanemode-drop).
+#   docker compose up -d --build      ->  QuickShot http://localhost:8769, Drop http://localhost:8766
+# On the box, QuickShot runs from the airplanemode platform repo at /quickshot/.
+
+name: quickshot-dev
+
+services:
+  quickshot:
+    build: .
+    environment:
+      DROP_URL: http://drop:8000
+      DROP_PATH: http://localhost:${DROP_PORT:-8766}/
+    volumes:
+      - quickshot-data:/data     # comments, likes, views: survive restarts and rebuilds
+    ports:
+      - "${PORT:-8769}:8000"
+    mem_limit: 64m
+
+  drop:
+    build: ../airplanemode-drop
+    volumes:
+      - drop-data:/data
+    ports:
+      - "${DROP_PORT:-8766}:8000"
+    mem_limit: 128m
+
+volumes:
+  quickshot-data:
+  drop-data:

@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#000000">
+<title>QuickShot · AirplaneMode</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='4' fill='%239b7bff'/%3E%3Cpath d='M9.5 2L4 9h3.5L6.5 14 12 7H8.5z' fill='%23140b2e'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --accent: #9b7bff; --heart: #ff4d6d; --ink: #f4f1ea; --dim: #b7b2c4; --panel: #16141c; --line: #2a2733;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    --col: min(100vw, calc(100dvh * 9 / 16));
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: #000; color: var(--ink); font: 15px/1.4 var(--sans); overflow: hidden; overscroll-behavior: none; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  a { color: inherit; }
+  [hidden] { display: none !important; }
+
+  #feed { position: fixed; inset: 0; overflow-y: scroll; scroll-snap-type: y mandatory; scrollbar-width: none; overscroll-behavior: contain; }
+  #feed::-webkit-scrollbar { display: none; }
+  .slide { position: relative; height: 100dvh; scroll-snap-align: start; scroll-snap-stop: always; display: grid; place-items: center; overflow: hidden; }
+  .frame { position: relative; width: var(--col); height: 100%; background: #0a0a0d; overflow: hidden; }
+  @media (min-width: 700px) { .frame { border-radius: 14px; height: calc(100% - 24px); box-shadow: 0 0 0 1px #ffffff12; } }
+  .frame video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
+  .frame video.cover { object-fit: cover; }
+  .shade { position: absolute; inset: auto 0 0 0; height: 45%; background: linear-gradient(transparent, #000a 70%, #000d); pointer-events: none; }
+  .tophade { position: absolute; inset: 0 0 auto 0; height: 90px; background: linear-gradient(#0008, transparent); pointer-events: none; }
+  .ph { position: absolute; inset: 0; display: grid; place-items: center; }
+  .ph i { width: 34px; height: 34px; border-radius: 50%; border: 3px solid #ffffff22; border-top-color: var(--accent); animation: spin 0.9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .meta { position: absolute; left: 14px; right: 84px; bottom: calc(22px + env(safe-area-inset-bottom)); text-shadow: 0 1px 3px #0009; }
+  .meta .who { font-weight: 700; font-size: 1rem; display: flex; align-items: center; gap: 8px; }
+  .meta .who span { font: 500 .72rem var(--sans); color: var(--dim); }
+  .meta .cap { margin-top: 6px; font-size: .95rem; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .meta .cap b { font-weight: 600; color: #fff; }
+  .meta .stat { margin-top: 6px; font-size: .8rem; color: var(--dim); }
+
+  .rail { position: absolute; right: 8px; bottom: calc(26px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; align-items: center; gap: 18px; }
+  .rail button { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: .78rem; font-weight: 600; text-shadow: 0 1px 3px #0009; min-width: 56px; }
+  .rail .ic { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: #0000004d; backdrop-filter: blur(6px); transition: transform .12s; }
+  .rail button:active .ic { transform: scale(.88); }
+  .rail svg { width: 28px; height: 28px; }
+  .rail .liked svg { color: var(--heart); fill: var(--heart); animation: pop .35s; }
+  @keyframes pop { 40% { transform: scale(1.3); } }
+  .avatar { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 1.05rem; border: 2px solid #fff; color: #140b2e; }
+
+  .bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: #ffffff26; }
+  .bar i { display: block; height: 100%; width: 0; background: #fff; }
+  .paused { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+  .paused span { width: 74px; height: 74px; border-radius: 50%; background: #0007; display: grid; place-items: center; animation: fadein .15s; }
+  .paused svg { width: 30px; height: 30px; margin-left: 5px; }
+  @keyframes fadein { from { opacity: 0; transform: scale(.8); } }
+  .burst { position: absolute; width: 110px; height: 110px; margin: -55px 0 0 -55px; pointer-events: none; color: var(--heart); animation: burst .8s ease-out forwards; z-index: 3; }
+  .burst svg { width: 100%; height: 100%; fill: currentColor; filter: drop-shadow(0 4px 12px #0007); }
+  @keyframes burst { 0% { transform: scale(.2) rotate(var(--r)); opacity: 0; } 15% { transform: scale(1.15) rotate(var(--r)); opacity: 1; } 30% { transform: scale(.95) rotate(var(--r)); } 70% { opacity: 1; } 100% { transform: scale(1.1) translateY(-80px) rotate(var(--r)); opacity: 0; } }
+
+  header { position: fixed; top: 0; left: 50%; transform: translateX(-50%); width: var(--col); z-index: 4; display: flex; justify-content: space-between; align-items: center; padding: max(12px, env(safe-area-inset-top)) 14px 0; pointer-events: none; }
+  header > * { pointer-events: auto; }
+  .brand { font-weight: 800; letter-spacing: -.01em; font-size: 1.05rem; text-decoration: none; display: flex; align-items: center; gap: 6px; text-shadow: 0 1px 3px #0008; }
+  .brand svg { width: 18px; height: 18px; }
+  .chip { font: 600 .78rem var(--sans); padding: 7px 12px; border-radius: 99px; background: #0000005c; backdrop-filter: blur(8px); border: 1px solid #ffffff22; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+  .chip svg { width: 15px; height: 15px; }
+  .chip.sound { background: #fff; color: #000; border-color: #fff; animation: nudge 2.4s ease-in-out infinite; }
+  @keyframes nudge { 0%, 80%, 100% { transform: none; } 88% { transform: scale(1.06); } }
+  @media (prefers-reduced-motion: reduce) { .chip.sound, .burst, .rail .liked svg { animation: none; } #feed { scroll-behavior: auto; } }
+
+  /* comments sheet */
+  .sheet-bg { position: fixed; inset: 0; background: #0006; z-index: 9; animation: fadein .2s; }
+  .sheet { position: fixed; left: 50%; bottom: 0; transform: translateX(-50%); width: min(100vw, 560px); height: min(70dvh, 620px); background: var(--panel); border-radius: 16px 16px 0 0; z-index: 10; display: flex; flex-direction: column; animation: up .22s ease-out; }
+  @keyframes up { from { transform: translate(-50%, 100%); } }
+  .sheet h3 { margin: 0; padding: 14px 16px 10px; text-align: center; font-size: .92rem; position: relative; border-bottom: 1px solid var(--line); }
+  .sheet h3 button { position: absolute; right: 12px; top: 10px; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; color: var(--dim); }
+  .sheet h3 button:hover { background: #ffffff12; color: var(--ink); }
+  .clist { flex: 1; overflow-y: auto; padding: 6px 16px; overscroll-behavior: contain; }
+  .c { display: flex; gap: 10px; padding: 10px 0; }
+  .c .av { width: 32px; height: 32px; border-radius: 50%; flex: none; display: grid; place-items: center; font: 800 .8rem var(--sans); color: #140b2e; }
+  .c .body { min-width: 0; flex: 1; }
+  .c .nm { font-size: .78rem; color: var(--dim); font-weight: 600; }
+  .c .nm em { font-style: normal; font-weight: 400; margin-left: 6px; }
+  .c .tx { white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 1px; }
+  .c .del { font-size: .72rem; color: var(--dim); margin-top: 3px; }
+  .c .del:hover { color: var(--heart); }
+  .cempty { color: var(--dim); text-align: center; padding: 40px 10px; }
+  .cform { display: flex; gap: 8px; align-items: flex-end; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); }
+  .cform .me { flex: none; height: 38px; padding: 0 10px; border-radius: 99px; background: #ffffff10; font-size: .78rem; color: var(--dim); max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cform textarea { flex: 1; resize: none; min-height: 38px; max-height: 110px; padding: 9px 12px; border-radius: 19px; border: 1px solid var(--line); background: #0d0c11; color: var(--ink); font: .95rem var(--sans); }
+  .cform textarea:focus { outline: none; border-color: var(--accent); }
+  .cform .send { flex: none; height: 38px; padding: 0 14px; border-radius: 99px; background: var(--accent); color: #140b2e; font-weight: 700; }
+  .cform .send:disabled { opacity: .4; }
+  .cerr { color: var(--heart); font-size: .8rem; padding: 0 16px 6px; min-height: 0; }
+
+  .empty { position: fixed; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; background: radial-gradient(circle at 50% 30%, #2a1f55, #000 70%); }
+  .empty .box { max-width: 380px; }
+  .empty .logo { width: 72px; height: 72px; border-radius: 20px; background: var(--accent); display: grid; place-items: center; margin: 0 auto 18px; box-shadow: 0 20px 40px -10px #9b7bff88; }
+  .empty .logo svg { width: 34px; height: 34px; }
+  .empty h1 { margin: 0 0 8px; font-size: 1.5rem; }
+  .empty p { color: var(--dim); margin: 0 0 18px; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 18px; border-radius: 99px; font-weight: 700; text-decoration: none; }
+  .btn.primary { background: var(--accent); color: #140b2e; }
+  .btn.ghost { border: 1px solid #ffffff33; }
+  .empty .row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .toast { position: fixed; left: 50%; top: 70px; transform: translateX(-50%); background: #fff; color: #000; font-weight: 600; font-size: .85rem; padding: 8px 14px; border-radius: 99px; z-index: 20; animation: fadein .2s; }
+</style>
+</head>
+<body>
+
+<header id="top" hidden>
+  <a class="brand" href="../" title="Back to AirplaneMode"><svg viewBox="0 0 16 16"><path d="M9.5 1L3.5 9h4L6.5 15 12.5 7h-4z" fill="#9b7bff"/></svg>QuickShot</a>
+  <button class="chip sound" id="sound" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4z"/><path d="M23 9l-6 6M17 9l6 6"/></svg>Tap for sound</button>
+</header>
+<main id="feed" aria-label="Clips"></main>
+<div class="empty" id="empty" hidden></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const H = { "X-QuickShot": "1", "Content-Type": "application/json" };
+const ICON = {
+  heart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 21s-7.5-4.6-10-9.3C.4 8.4 2.3 4.5 6 4.5c2.2 0 3.6 1.2 4.5 2.6h3c.9-1.4 2.3-2.6 4.5-2.6 3.7 0 5.6 3.9 4 7.2C19.5 16.4 12 21 12 21z"/></svg>',
+  chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M21 12a8.5 8.5 0 0 1-12.6 7.4L3 21l1.6-5.1A8.5 8.5 0 1 1 21 12z"/></svg>',
+  play: '<svg viewBox="0 0 24 24"><path d="M6 3l15 9-15 9z" fill="#fff"/></svg>',
+  on: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>',
+  off: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4z"/><path d="M23 9l-6 6M17 9l6 6"/></svg>',
+  bolt: '<svg viewBox="0 0 16 16"><path d="M9.5 1L3.5 9h4L6.5 15 12.5 7h-4z" fill="#140b2e"/></svg>',
+};
+const HEART_FILL = '<svg viewBox="0 0 24 24"><path d="M12 21s-7.5-4.6-10-9.3C.4 8.4 2.3 4.5 6 4.5c2.2 0 3.6 1.2 4.5 2.6h3c.9-1.4 2.3-2.6 4.5-2.6 3.7 0 5.6 3.9 4 7.2C19.5 16.4 12 21 12 21z"/></svg>';
+
+// ---- this device: an anonymous viewer id, a display name, what it has seen ----
+const mem = {
+  get(k, d = null) { try { const v = localStorage.getItem("qs." + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("qs." + k, JSON.stringify(v)); } catch {} },
+};
+function rand(n) { const a = new Uint8Array(n); crypto.getRandomValues(a); return [...a].map(b => "abcdefghijklmnopqrstuvwxyz0123456789"[b % 36]).join(""); }
+const viewer = mem.get("viewer") || (mem.set("viewer", rand(20)), mem.get("viewer")) || rand(20);
+let myName = mem.get("name") || `traveler-${1000 + Math.floor(Math.random() * 9000)}`;
+mem.set("name", myName);
+const seen = new Set(mem.get("seen", []));
+
+let data = null, byId = new Map(), order = [], slides = [], active = -1, unmuted = false;
+
+function hue(s) { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360; return h; }
+const tint = s => `hsl(${hue(s)} 75% 72%)`;
+function count(n) { return n >= 1e6 ? (n / 1e6).toFixed(1).replace(/\.0$/, "") + "M" : n >= 1e4 ? Math.round(n / 1e3) + "K" : n >= 1e3 ? (n / 1e3).toFixed(1).replace(/\.0$/, "") + "K" : String(n); }
+function ago(t) { const s = Date.now() / 1000 - t; return s < 60 ? "now" : s < 3600 ? Math.max(1, Math.floor(s / 60)) + "m" : s < 86400 ? Math.floor(s / 3600) + "h" : Math.floor(s / 86400) + "d"; }
+function caption(name) {
+  const base = name.replace(/\.[a-z0-9]{2,5}$/i, "").replace(/[_]+/g, " ").replace(/\s{2,}/g, " ").trim();
+  return esc(base).replace(/(^|\s)#([\p{L}\p{N}_]+)/gu, "$1<b>#$2</b>");
+}
+// a subfolder of QuickShot is a "creator"; clips at the top belong to @quickshot
+function creator(c) { return (c.creator || "quickshot").toLowerCase().replace(/[^\p{L}\p{N}_.]+/gu, "") || "quickshot"; }
+
+// ---- the order: new to this device first (newest first), then everything shuffled, forever ----
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function nextRound(first) {
+  const all = data.clips.slice();
+  if (first) {
+    const fresh = all.filter(c => !seen.has(c.id));            // already newest first
+    return [...fresh, ...shuffle(all.filter(c => seen.has(c.id)))];
+  }
+  const round = shuffle(all);
+  const recent = new Set(order.slice(-Math.min(3, Math.floor(all.length / 2))).map(c => c.id));
+  round.sort((a, b) => recent.has(a.id) - recent.has(b.id));  // don't repeat what you just saw
+  return round;
+}
+
+// ---- slides: one per entry in the order, but a <video> only near the one you're on ----
+function makeSlide(c, i) {
+  const s = document.createElement("section");
+  s.className = "slide"; s.dataset.i = i;
+  s.innerHTML = `<div class="frame">
+      <div class="ph"><i></i></div>
+      <div class="tophade"></div><div class="shade"></div>
+      <div class="meta"><div class="who">@${esc(creator(c))} <span>· ${ago(c.created)}</span></div><div class="cap">${caption(c.name)}</div><div class="stat"></div></div>
+      <div class="rail">
+        <div class="avatar" style="background:${tint(creator(c))}">${esc(creator(c)[0].toUpperCase())}</div>
+        <button type="button" data-like aria-label="Like"><span class="ic">${ICON.heart}</span><span class="n"></span></button>
+        <button type="button" data-comments aria-label="Comments"><span class="ic">${ICON.chat}</span><span class="n"></span></button>
+        <button type="button" data-mute aria-label="Sound"><span class="ic"></span><span class="n"></span></button>
+      </div>
+      <div class="bar"><i></i></div>
+    </div>`;
+  s.clip = c;
+  paint(s);
+  return s;
+}
+function paint(s) {
+  const c = byId.get(s.clip.id) || s.clip;
+  const like = s.querySelector("[data-like]");
+  like.classList.toggle("liked", !!c.liked);
+  like.querySelector(".ic").innerHTML = ICON.heart;
+  like.querySelector(".n").textContent = count(c.likes);
+  s.querySelector("[data-comments] .n").textContent = count(c.comments);
+  s.querySelector("[data-mute] .ic").innerHTML = unmuted ? ICON.on : ICON.off;
+  s.querySelector("[data-mute] .n").textContent = unmuted ? "On" : "Off";
+  s.querySelector(".stat").textContent = `${count(c.views)} view${c.views === 1 ? "" : "s"}`;
+}
+function attach(s) {
+  if (s.video) return s.video;
+  const c = s.clip, v = document.createElement("video");
+  v.playsInline = true; v.loop = true; v.muted = !unmuted; v.preload = "auto";
+  v.setAttribute("playsinline", ""); v.setAttribute("disablepictureinpicture", "");
+  if (!c.download) v.oncontextmenu = () => false;
+  v.src = data.drop_path + "api/files/" + c.id;
+  v.addEventListener("loadedmetadata", () => {
+    // portrait clips fill the screen; landscape ones fit, with bars
+    v.classList.toggle("cover", v.videoHeight > v.videoWidth * 1.1);
+  });
+  v.addEventListener("playing", () => s.querySelector(".ph")?.remove());
+  v.addEventListener("timeupdate", () => { if (v.duration) s.querySelector(".bar i").style.width = (100 * v.currentTime / v.duration) + "%"; });
+  s.querySelector(".frame").prepend(v);
+  s.video = v;
+  return v;
+}
+function detach(s) {
+  if (!s.video) return;
+  s.video.pause(); s.video.removeAttribute("src"); s.video.load(); s.video.remove(); s.video = null;
+  if (!s.querySelector(".ph")) s.querySelector(".frame").insertAdjacentHTML("afterbegin", '<div class="ph"><i></i></div>');
+}
+function addRound(first) {
+  const round = nextRound(first);
+  const feed = $("#feed");
+  for (const c of round) {
+    const s = makeSlide(c, order.length);
+    order.push(c); slides.push(s); feed.append(s); io.observe(s);
+  }
+}
+
+// ---- which slide is on screen ----
+let viewTimer = null;
+const io = new IntersectionObserver(entries => {
+  for (const e of entries) if (e.isIntersecting && e.intersectionRatio >= 0.6) activate(+e.target.dataset.i);
+}, { threshold: [0.6] });
+function activate(i) {
+  if (i === active) return;
+  active = i;
+  clearTimeout(viewTimer);
+  slides.forEach((s, j) => {
+    if (Math.abs(j - i) <= 2) { if (j !== i) { const v = attach(s); v.pause(); } }
+    else detach(s);
+    s.querySelector(".paused")?.remove();
+  });
+  const s = slides[i], v = attach(s);
+  v.muted = !unmuted;
+  v.currentTime = 0;
+  v.play().catch(() => { if (!v.muted) { v.muted = true; v.play().catch(() => {}); } });
+  paint(s);
+  const c = s.clip;
+  viewTimer = setTimeout(() => {          // it counts as a view after 2 s on screen
+    seen.add(c.id); mem.set("seen", [...seen].slice(-2000));
+    fetch("api/views/" + c.id, { method: "POST", headers: H, body: JSON.stringify({ viewer }) })
+      .then(r => r.json()).then(d => { const x = byId.get(c.id); if (x && d.views != null) { x.views = d.views; slides.filter(z => z.clip.id === c.id).forEach(paint); } }).catch(() => {});
+  }, 2000);
+  if (i >= slides.length - 3) addRound(false);   // never run out
+}
+
+// ---- taps: one = pause/play, two = like with a burst ----
+let lastTap = 0, tapTimer = null;
+$("#feed").addEventListener("click", e => {
+  const s = e.target.closest(".slide"); if (!s) return;
+  if (e.target.closest("[data-like]")) return toggleLike(s.clip.id);
+  if (e.target.closest("[data-comments]")) return openComments(s.clip.id);
+  if (e.target.closest("[data-mute]")) return setSound(!unmuted);
+  if (e.target.closest(".rail, .meta a")) return;
+  const now = Date.now();
+  if (now - lastTap < 280) {                       // double tap
+    clearTimeout(tapTimer); lastTap = 0;
+    burst(s, e.clientX, e.clientY);
+    const c = byId.get(s.clip.id); if (c && !c.liked) toggleLike(c.id);
+    return;
+  }
+  lastTap = now;
+  tapTimer = setTimeout(() => togglePause(s), 280);
+});
+function togglePause(s) {
+  const v = s.video; if (!v) return;
+  s.querySelector(".paused")?.remove();
+  if (v.paused) { v.play().catch(() => {}); }
+  else { v.pause(); s.querySelector(".frame").insertAdjacentHTML("beforeend", `<div class="paused"><span>${ICON.play}</span></div>`); }
+}
+function burst(s, x, y) {
+  const r = s.querySelector(".frame").getBoundingClientRect();
+  const b = document.createElement("div"); b.className = "burst";
+  b.style.left = (x - r.left) + "px"; b.style.top = (y - r.top) + "px"; b.style.setProperty("--r", (Math.random() * 40 - 20) + "deg");
+  b.innerHTML = HEART_FILL;
+  s.querySelector(".frame").append(b);
+  setTimeout(() => b.remove(), 850);
+}
+async function toggleLike(id) {
+  const c = byId.get(id); if (!c) return;
+  c.liked = !c.liked; c.likes += c.liked ? 1 : -1;          // feels instant; the box has the final word
+  slides.filter(s => s.clip.id === id).forEach(paint);
+  try {
+    const d = await (await fetch("api/likes/" + id, { method: "POST", headers: H, body: JSON.stringify({ viewer, liked: c.liked }) })).json();
+    if (d.likes != null) { c.likes = d.likes; c.liked = d.liked; }
+  } catch { c.liked = !c.liked; c.likes += c.liked ? 1 : -1; }
+  slides.filter(s => s.clip.id === id).forEach(paint);
+}
+
+// ---- sound: browsers only allow it after a tap ----
+function setSound(on) {
+  unmuted = on;
+  $("#sound").hidden = on;
+  const s = slides[active];
+  if (s && s.video) { s.video.muted = !on; if (on) s.video.play().catch(() => {}); }
+  slides.forEach(z => { if (z.video && z !== s) z.video.muted = !on; paint(z); });
+}
+$("#sound").addEventListener("click", () => setSound(true));
+
+// ---- comments ----
+let sheetFor = null;
+async function openComments(id) {
+  sheetFor = id;
+  closeComments(true);
+  const bg = document.createElement("div"); bg.className = "sheet-bg"; bg.onclick = () => closeComments();
+  const sh = document.createElement("div"); sh.className = "sheet"; sh.setAttribute("role", "dialog"); sh.setAttribute("aria-label", "Comments");
+  sh.innerHTML = `<h3><span class="ttl">Comments</span><button type="button" aria-label="Close">✕</button></h3>
+    <div class="clist"><div class="cempty">Loading…</div></div><div class="cerr"></div>
+    <form class="cform"><button type="button" class="me" title="Change your name">${esc(myName)}</button>
+      <textarea rows="1" maxlength="300" placeholder="Add a comment…" enterkeyhint="send"></textarea><button class="send" disabled>Post</button></form>`;
+  document.body.append(bg, sh);
+  sh.querySelector("h3 button").onclick = () => closeComments();
+  const ta = sh.querySelector("textarea"), send = sh.querySelector(".send");
+  ta.oninput = () => { send.disabled = !ta.value.trim(); ta.style.height = "auto"; ta.style.height = Math.min(110, ta.scrollHeight) + "px"; };
+  ta.onkeydown = e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (ta.value.trim()) sh.querySelector("form").requestSubmit(); } };
+  sh.querySelector(".me").onclick = () => {
+    const n = prompt("Your name in comments", myName);
+    if (n && n.trim()) { myName = n.trim().slice(0, 24); mem.set("name", myName); sh.querySelector(".me").textContent = myName; }
+  };
+  sh.querySelector("form").onsubmit = async e => {
+    e.preventDefault();
+    const text = ta.value.trim(); if (!text) return;
+    send.disabled = true; sh.querySelector(".cerr").textContent = "";
+    try {
+      const r = await fetch("api/comments/" + id, { method: "POST", headers: H, body: JSON.stringify({ viewer, name: myName, text }) });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || "Couldn't post that.");
+      ta.value = ""; ta.oninput();
+      setCount(id, d.count);
+      await loadComments(id, true);
+    } catch (err) { sh.querySelector(".cerr").textContent = err.message; send.disabled = false; }
+  };
+  sh.querySelector(".clist").addEventListener("click", async e => {
+    const b = e.target.closest("[data-del]"); if (!b || !confirm("Delete this comment?")) return;
+    const r = await fetch(`api/comments/${id}/${b.dataset.del}?viewer=${encodeURIComponent(viewer)}`, { method: "DELETE", headers: H });
+    const d = await r.json().catch(() => ({}));
+    if (r.ok) { setCount(id, d.count); loadComments(id); } else sh.querySelector(".cerr").textContent = d.detail || "Couldn't delete that.";
+  });
+  await loadComments(id, true);
+}
+function setCount(id, n) { const c = byId.get(id); if (c && n != null) { c.comments = n; slides.filter(s => s.clip.id === id).forEach(paint); } }
+async function loadComments(id, toEnd) {
+  const sh = $(".sheet"); if (!sh || sheetFor !== id) return;
+  try {
+    const d = await (await fetch(`api/comments/${id}?viewer=${encodeURIComponent(viewer)}`)).json();
+    const list = d.comments || [];
+    sh.querySelector(".ttl").textContent = `${list.length} comment${list.length === 1 ? "" : "s"}`;
+    const box = sh.querySelector(".clist");
+    box.innerHTML = list.length ? list.map(c => `<div class="c"><span class="av" style="background:${tint(c.name)}">${esc(c.name[0].toUpperCase())}</span>
+      <div class="body"><div class="nm">${esc(c.name)}${c.mine ? " (you)" : ""}<em>${ago(c.at)}</em></div><div class="tx">${esc(c.text)}</div>
+      ${c.can_delete ? `<button type="button" class="del" data-del="${esc(c.id)}">delete</button>` : ""}</div></div>`).join("")
+      : `<div class="cempty">No comments yet. Say something.</div>`;
+    if (toEnd) box.scrollTop = box.scrollHeight;
+  } catch { sh.querySelector(".cerr").textContent = "Couldn't load comments."; }
+}
+function closeComments(quiet) { $(".sheet")?.remove(); $(".sheet-bg")?.remove(); if (!quiet) sheetFor = null; }
+setInterval(() => { if (sheetFor && $(".sheet")) loadComments(sheetFor); }, 8000);
+
+// ---- keyboard (laptops) ----
+document.addEventListener("keydown", e => {
+  if (e.target.closest("textarea, input")) { if (e.key === "Escape") closeComments(); return; }
+  const go = d => slides[active + d]?.scrollIntoView({ behavior: "smooth" });
+  if (e.key === "ArrowDown" || e.key === "j") { e.preventDefault(); go(1); }
+  else if (e.key === "ArrowUp" || e.key === "k") { e.preventDefault(); go(-1); }
+  else if (e.key === " ") { e.preventDefault(); slides[active] && togglePause(slides[active]); }
+  else if (e.key === "m") setSound(!unmuted);
+  else if (e.key === "l" && slides[active]) toggleLike(slides[active].clip.id);
+  else if (e.key === "c" && slides[active]) openComments(slides[active].clip.id);
+  else if (e.key === "Escape") closeComments();
+});
+
+// ---- loading, empty states, and new uploads ----
+function toast(t) { const d = document.createElement("div"); d.className = "toast"; d.textContent = t; document.body.append(d); setTimeout(() => d.remove(), 2600); }
+function index(d) {
+  // creators: the name of the subfolder a clip is in (the server sends the folder path)
+  data = d;
+  byId = new Map(d.clips.map(c => [c.id, c]));
+}
+function showEmpty(d, err) {
+  $("#top").hidden = true;
+  const e = $("#empty"); e.hidden = false;
+  const name = esc(d ? d.folder_name : "QuickShot");
+  e.innerHTML = `<div class="box"><div class="logo">${ICON.bolt}</div>${err
+    ? `<h1>Can't load the feed</h1><p>${esc(err)}</p><div class="row"><button class="btn primary" onclick="start()">Try again</button></div>`
+    : !d.folder
+      ? `<h1>QuickShot</h1><p>An endless feed of the short videos on this box. They come from a folder in Drop called <b>${name}</b>, which doesn't exist yet.</p>
+         <div class="row"><button class="btn primary" id="setup">Create the ${name} folder</button></div>`
+      : `<h1>Nothing to scroll yet</h1><p>Put short videos (vertical ones look best) in the <b>${name}</b> folder in Drop. Subfolders become creators. Tap <b>keep</b> on the folder so they stay.</p>
+         <div class="row"><a class="btn primary" href="${esc(d.drop_path)}#f=${d.folder.id}">Open ${name} in Drop</a><button class="btn ghost" onclick="start()">Refresh</button></div>`}</div>`;
+  $("#setup")?.addEventListener("click", async () => {
+    const r = await fetch("api/setup", { method: "POST", headers: H });
+    if (r.ok) start(); else toast("Couldn't create it. Is Drop running?");
+  });
+}
+async function fetchFeed() {
+  const r = await fetch("api/feed?viewer=" + encodeURIComponent(viewer), { cache: "no-store" });
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.detail || r.statusText);
+  return d;
+}
+async function start() {
+  let d;
+  try { d = await fetchFeed(); } catch (err) { return showEmpty(null, err.message); }
+  if (!d.clips.length) return showEmpty(d);
+  $("#empty").hidden = true; $("#top").hidden = false;
+  index(d);
+  order = []; slides = []; active = -1; $("#feed").innerHTML = "";
+  addRound(true);
+  $("#feed").scrollTop = 0;
+}
+// every 30 s: fresh counts, and clips uploaded since go right after the one you're watching
+setInterval(async () => {
+  if (!data || document.hidden) return;
+  let d; try { d = await fetchFeed(); } catch { return; }
+  if (!d.clips.length) return;
+  const fresh = d.clips.filter(c => !byId.has(c.id));
+  const gone = new Set([...byId.keys()].filter(id => !d.clips.some(c => c.id === id)));
+  index(d);
+  slides.forEach(s => { if (byId.has(s.clip.id)) { s.clip = byId.get(s.clip.id); paint(s); } });
+  if (gone.size) slides.forEach(s => { if (gone.has(s.clip.id) && slides.indexOf(s) !== active) { s.style.display = "none"; detach(s); } });
+  if (fresh.length) {
+    const at = slides[active + 1] || null;
+    fresh.forEach(c => { const s = makeSlide(c, 0); $("#feed").insertBefore(s, at); });
+    // re-number, keeping the DOM order as the order
+    slides = [...$("#feed").children]; order = slides.map(s => s.clip);
+    slides.forEach((s, i) => { s.dataset.i = i; io.observe(s); });
+    toast(fresh.length === 1 ? "1 new clip coming up" : `${fresh.length} new clips coming up`);
+  }
+}, 30000);
+
+start();
+</script>
+</body>
+</html>
