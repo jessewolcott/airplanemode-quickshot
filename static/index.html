@@ -247,7 +247,8 @@ function activate(i) {
   const s = slides[i], v = attach(s);
   v.muted = !unmuted;
   v.currentTime = 0;
-  v.play().catch(() => { if (!v.muted) { v.muted = true; v.play().catch(() => {}); } });
+  // the browser refused sound (no tap yet in this tab): play muted, and say so honestly
+  v.play().catch(() => { if (!v.muted) { v.muted = true; v.play().catch(() => {}); setSound(false); } });
   paint(s);
   const c = s.clip;
   viewTimer = setTimeout(() => {          // it counts as a view after 2 s on screen

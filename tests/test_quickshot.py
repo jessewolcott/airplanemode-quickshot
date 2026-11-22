@@ -165,6 +165,15 @@ def test_everything_survives_a_restart():
     assert (qs.DATA / "comments.json").exists() and (qs.DATA / "stats.json").exists()
 
 
+def test_a_damaged_file_is_kept_not_overwritten():
+    qs.COMMENTS.write_text("{ broken", encoding="utf-8")
+    qs.comments = None
+    assert ok(c.get(f"/api/comments/{C1}"))["comments"] == []
+    bad = list(qs.DATA.glob("comments.json.bad-*"))
+    assert len(bad) == 1 and bad[0].read_text(encoding="utf-8") == "{ broken"
+    bad[0].unlink()
+
+
 def test_deleted_clips_lose_their_counts():
     drop_state["items"] = [i for i in ITEMS if i["id"] != C2]
     try:

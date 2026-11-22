@@ -118,7 +118,10 @@ class Stats:
         except FileNotFoundError:
             pass
         except Exception as e:
-            log.warning("could not read %s: %s", STATS, e)
+            # keep the damaged file for a look instead of overwriting it with the next save
+            bad = STATS.with_name(f"{STATS.name}.bad-{int(time.time())}")
+            log.warning("could not read %s (%s); kept it as %s and starting empty", STATS, e, bad.name)
+            STATS.replace(bad)
 
     def save(self):
         DATA.mkdir(parents=True, exist_ok=True)
@@ -156,7 +159,10 @@ class Comments:
         except FileNotFoundError:
             pass
         except Exception as e:
-            log.warning("could not read %s: %s", COMMENTS, e)
+            # keep the damaged file for a look instead of overwriting it with the next save
+            bad = COMMENTS.with_name(f"{COMMENTS.name}.bad-{int(time.time())}")
+            log.warning("could not read %s (%s); kept it as %s and starting empty", COMMENTS, e, bad.name)
+            COMMENTS.replace(bad)
 
     def save(self):
         DATA.mkdir(parents=True, exist_ok=True)
