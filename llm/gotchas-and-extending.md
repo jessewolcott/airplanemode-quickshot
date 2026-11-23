@@ -10,7 +10,8 @@ Backend:
   folder is "kept"). Moving it back later starts from zero.
 - **Corrupt state file -> fresh start, old file kept.** A JSON parse error renames the file to
   `stats.json.bad-<unix time>` / `comments.json.bad-<unix time>`, logs a warning and starts
-  empty (`app.py:120-124`, `:161-165`). Nothing cleans the `.bad-*` files up.
+  empty (`set_aside`, `app.py:111`). Each load then keeps only the newest `KEEP_BAD` (3) copies
+  per file and deletes older ones (`prune_bad`, `app.py:118`), so they can't pile up.
 - **View dedupe is in memory**: a restart allows one extra counted view per viewer per clip.
 - **Likes/views accept any well-formed clip id**, existing or not; the next feed load prunes
   unknown ones.

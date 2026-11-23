@@ -17,7 +17,8 @@ Two singletons, created **lazily** on first use:
 - Loading: `FileNotFoundError` -> start empty silently; any other error (corrupt JSON, wrong
   shape) -> rename the file to `<name>.bad-<unix time>`, log a warning and start empty. The
   damaged file is kept for a look, not overwritten by the next save (test
-  `test_a_damaged_file_is_kept_not_overwritten`).
+  `test_a_damaged_file_is_kept_not_overwritten`). Every load also prunes the damaged copies to
+  the newest 3 per file (`prune_bad`; test `test_old_damaged_copies_are_pruned`).
 - Saving (`save()`): `DATA.mkdir(parents=True, exist_ok=True)`, write a sibling temp file
   (`stats.tmp` / `comments.tmp`, via `with_suffix(".tmp")`), then `tmp.replace(target)`.
   `replace` is an atomic rename on the same filesystem, so a crash leaves either the old or

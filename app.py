@@ -105,6 +105,35 @@ def clips_in(items, folder_id):
 
 
 # ---------------- likes and views (one small JSON file) ----------------
+KEEP_BAD = 3     # damaged copies kept per file (stats.json.bad-<time>, comments.json.bad-<time>)
+
+
+def set_aside(path, e):
+    """Keep a damaged data file for a look instead of overwriting it with the next save."""
+    bad = path.with_name(f"{path.name}.bad-{int(time.time())}")
+    log.warning("could not read %s (%s); kept it as %s and starting empty", path, e, bad.name)
+    path.replace(bad)
+
+
+def prune_bad(path):
+    """Delete all but the newest KEEP_BAD damaged copies of `path`, so they can't pile up."""
+    def stamp(p):
+        try:
+            return int(p.name.rsplit("-", 1)[1])
+        except ValueError:
+            return 0
+    try:
+        old = sorted(path.parent.glob(f"{path.name}.bad-*"), key=stamp, reverse=True)[KEEP_BAD:]
+    except OSError:
+        return
+    for p in old:
+        try:
+            p.unlink()
+            log.info("removed old damaged copy %s", p.name)
+        except OSError as e:
+            log.warning("could not remove %s (%s)", p.name, e)
+
+
 class Stats:
     def __init__(self):
         self.likes = {}          # clip id -> set of viewer ids
@@ -118,10 +147,8 @@ class Stats:
         except FileNotFoundError:
             pass
         except Exception as e:
-            # keep the damaged file for a look instead of overwriting it with the next save
-            bad = STATS.with_name(f"{STATS.name}.bad-{int(time.time())}")
-            log.warning("could not read %s (%s); kept it as %s and starting empty", STATS, e, bad.name)
-            STATS.replace(bad)
+            set_aside(STATS, e)
+        prune_bad(STATS)
 
     def save(self):
         DATA.mkdir(parents=True, exist_ok=True)
@@ -159,10 +186,8 @@ class Comments:
         except FileNotFoundError:
             pass
         except Exception as e:
-            # keep the damaged file for a look instead of overwriting it with the next save
-            bad = COMMENTS.with_name(f"{COMMENTS.name}.bad-{int(time.time())}")
-            log.warning("could not read %s (%s); kept it as %s and starting empty", COMMENTS, e, bad.name)
-            COMMENTS.replace(bad)
+            set_aside(COMMENTS, e)
+        prune_bad(COMMENTS)
 
     def save(self):
         DATA.mkdir(parents=True, exist_ok=True)

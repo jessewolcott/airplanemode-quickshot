@@ -34,6 +34,7 @@ How it works:
 | `test_admin_can_delete_any_comment` | With `ADMIN_URL` set and `check_admin_token` faked: wrong token can't delete; right token sees `admin: true`, `can_delete` on others' comments, and can delete |
 | `test_everything_survives_a_restart` | Reset singletons; counts and comments reload from the JSON files |
 | `test_a_damaged_file_is_kept_not_overwritten` | A broken `comments.json` gives an empty list and is renamed to exactly one `comments.json.bad-*` with the original bytes |
+| `test_old_damaged_copies_are_pruned` | With five `stats.json.bad-*` and one `comments.json.bad-*`, a load keeps the newest 3 stats copies and the comments one |
 | `test_deleted_clips_lose_their_counts` | Removing C2 from Drop forgets its views and comments; removing the folder forgets nothing |
 
 Test hooks in `app.py`: `drop_call`, `check_admin_token`, `_admin_cache`, `ADMIN_URL`, the

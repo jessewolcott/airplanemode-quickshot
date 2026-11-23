@@ -183,6 +183,18 @@ def test_a_damaged_file_is_kept_not_overwritten():
     bad[0].unlink()
 
 
+def test_old_damaged_copies_are_pruned():
+    for t in (100, 200, 300, 400, 500):
+        (qs.DATA / f"stats.json.bad-{t}").write_text("old", encoding="utf-8")
+    (qs.DATA / "comments.json.bad-100").write_text("old", encoding="utf-8")
+    qs.stats, qs.comments = None, None
+    feed()                                              # loads both stores
+    left = sorted(p.name for p in qs.DATA.glob("*.bad-*"))
+    assert left == ["comments.json.bad-100", "stats.json.bad-300", "stats.json.bad-400", "stats.json.bad-500"], left
+    for p in qs.DATA.glob("*.bad-*"):
+        p.unlink()
+
+
 def test_deleted_clips_lose_their_counts():
     drop_state["items"] = [i for i in ITEMS if i["id"] != C2]
     try:
