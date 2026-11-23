@@ -36,4 +36,4 @@ The real test bed is the platform dev stack (compose.dev.yaml builds this repo).
 ## Releasing
 
 Push a `vX.Y.Z` tag. CI tests, then publishes `ghcr.io/jessewolcott/airplanemode-quickshot:X.Y.Z`
-(arm64 + amd64). **Ask Jesse before pushing a release tag.** Released: 0.1.0.
+(arm64 + amd64). **Ask Jesse before pushing a release tag.** Released: 0.1.0, 0.1.1 (home button).
