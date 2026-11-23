@@ -24,6 +24,7 @@ How it works:
 | Test | Checks |
 |---|---|
 | `test_page_uses_relative_urls` | The page references `"api/feed`, never `"/api/`, and has no absolute/protocol-relative/root-relative `src`/`href` |
+| `test_page_has_home_button` | Exactly one `a.am-home` with `href="../"` and `aria-label="AirplaneMode home"`; the header isn't `hidden` in the markup; the brand links to `./`, not out of the app |
 | `test_feed_is_the_quickshot_folder` | `drop_path`, folder id, clip set and order `[C2, C3, C1]` (newest first; no PDF, nothing outside), creators (`None`, `Beach`, `Beach` for the deeper clip), `download` false passthrough, zero counts |
 | `test_setup_creates_the_folder_once` | No folder -> `folder: null`; setup without header 403; creates `QuickShot` once; second call creates nothing |
 | `test_drop_down` | Drop raising -> 503 with "Drop" in the detail |

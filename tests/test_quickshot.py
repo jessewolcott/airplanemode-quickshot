@@ -57,6 +57,15 @@ def test_page_uses_relative_urls():
     assert not re.search(r'(src|href)="(https?:|//|/[^/])', html), re.findall(r'(?:src|href)="[^"]*"', html)
 
 
+def test_page_has_home_button():
+    """App contract item 10: the AirplaneMode home button; the brand stays inside the app."""
+    html = c.get("/").text
+    links = re.findall(r'<a class="am-home" href="([^"]*)" aria-label="AirplaneMode home"', html)
+    assert links == ["../"], links
+    assert '<header id="top" hidden' not in html   # the header (and its home button) shows on every screen
+    assert re.search(r'<a class="brand" href="\./"', html), "the brand restarts the feed, it doesn't leave"
+
+
 def test_feed_is_the_quickshot_folder():
     d = feed()
     assert d["folder"]["id"] == QS and d["drop_path"] == "../drop/"

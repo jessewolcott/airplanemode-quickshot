@@ -85,7 +85,8 @@ The window is by slide index, so hidden ("gone") slides still count toward it.
 
 ### Autoplay / mute policy
 Browsers only allow autoplay without a user gesture when muted. So videos start muted and the
-header shows a pulsing white **"Tap for sound"** chip (`#sound`, hidden in empty states).
+header shows a pulsing white **"Tap for sound"** chip (`#sound`, hidden in empty states by
+`header.bare`).
 - `play()` rejection fallback: if the video was unmuted (sound on), retry muted. Note that
   `unmuted` stays true in that case, so the rail still says "On" while that clip is muted.
 - `setSound(on)` (`:305-311`): sets `unmuted`, hides the chip once sound is on (the chip only
@@ -156,9 +157,9 @@ triggers activation), `Space` pause/play, `m` sound, `l` like toggle, `c` open c
 - `fetchFeed()`: `GET api/feed?viewer=` with `cache: "no-store"`; throws the server `detail`
   on non-OK.
 - `start()`: on error -> `showEmpty(null, message)`; no clips -> `showEmpty(d)`; otherwise
-  hide the empty screen, show the header, index, reset `order/slides/active`, clear `#feed`,
+  hide the empty screen, remove `.bare` from the header (brand and sound chip back), index, reset `order/slides/active`, clear `#feed`,
   `addRound(true)`, scroll to top. Called at load and by the empty-state buttons.
-- `showEmpty(d, err)` (hides the header) has three variants:
+- `showEmpty(d, err)` (adds `.bare` to the header: only the home button stays) has three variants:
   1. **Error** (e.g. Drop down, 503): "Can't load the feed", the message, **Try again**.
   2. **No folder** (`d.folder === null`): explains the feed comes from Drop's folder named
      `folder_name`, which doesn't exist yet; **Create the QuickShot folder** posts
@@ -193,4 +194,25 @@ Every 30 s, if the feed has loaded and the tab is visible:
   so the comment box stays visible).
 - `overscroll-behavior: none/contain` stops pull-to-refresh and scroll chaining.
 - `prefers-reduced-motion: reduce` disables the sound-chip nudge, burst and like pop.
-- Brand link goes to `../` (the AirplaneMode landing page).
+
+## Header and the home button
+
+`header#top` is fixed at the top of the column and **never hidden**, because it holds the
+AirplaneMode home button (the platform's app contract item 10). Left to right: the brand
+(`href="./"`: reloads QuickShot, i.e. restarts the feed; it never leaves the app), the
+"Tap for sound" chip, and `a.am-home` (`href="../"`, house SVG, 44 x 44 px round, blurred
+dark glass like the chip, accent focus ring, no transition under reduced motion). The brand
+has `margin-right: auto` and the header `justify-content: flex-end`, so the chip and the home
+button stay at the right end whichever of them is shown.
+
+- `header.bare` (set in the markup for the first load, by `showEmpty()`, removed by
+  `start()`) hides everything but the home button (`visibility: hidden`).
+- Stacking: comments backdrop `z-index: 9`, header `10`, sheet `11`. So with the comments sheet
+  open, the home button still shows above the backdrop at the top right (the sheet is at most
+  70% of the height), and `body:has(.sheet)` hides the brand and chip. If the sheet ever
+  reaches the header (a tiny landscape viewport with the keyboard up) the sheet wins, so the
+  home button never covers its close button.
+- Leaving: the click handler on `#top .am-home` asks `confirm()` only when the comments sheet
+  holds text that hasn't been posted. Nothing else is lost by leaving (likes, views, comments
+  are on the box, `seen` is in localStorage, and a clip restarts when it comes back anyway).
+
