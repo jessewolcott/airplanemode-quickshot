@@ -33,6 +33,7 @@ How it works:
 | `test_comments` | Cleaning (control char, newline collapse, strip), name newline -> space, oldest-first list, `mine`/`can_delete`, **no viewer id in the JSON**, feed comment count, header 403, empty 400, 400-char 413, rate limit 429, delete others' 403, delete without header 403, delete own -> count, unknown id 404 |
 | `test_admin_can_delete_any_comment` | With `ADMIN_URL` set and `check_admin_token` faked: wrong token can't delete; right token sees `admin: true`, `can_delete` on others' comments, and can delete |
 | `test_everything_survives_a_restart` | Reset singletons; counts and comments reload from the JSON files |
+| `test_a_damaged_file_is_kept_not_overwritten` | A broken `comments.json` gives an empty list and is renamed to exactly one `comments.json.bad-*` with the original bytes |
 | `test_deleted_clips_lose_their_counts` | Removing C2 from Drop forgets its views and comments; removing the folder forgets nothing |
 
 Test hooks in `app.py`: `drop_call`, `check_admin_token`, `_admin_cache`, `ADMIN_URL`, the
@@ -89,7 +90,7 @@ Image: `ghcr.io/jessewolcott/airplanemode-quickshot`.
 3. In the platform repo, bump the pinned tag in `compose.yaml`
    (`ghcr.io/jessewolcott/airplanemode-quickshot:X.Y.Z`; never `latest`). The Caddy route
    and `portal/apps.json` entry already exist.
-Released so far: 0.1.0.
+Released so far: 0.1.0, 0.1.1 (home button).
 
 ## Hardware status
 

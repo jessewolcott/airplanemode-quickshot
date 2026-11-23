@@ -1,6 +1,6 @@
 # QuickShot: how it's built (LLM / engineer reference)
 
-Checked-in notes (`.dockerignore` lists `llm`, so none of this reaches the image). Written from the code as of release 0.1.0 (2026-11-22). If the code
+Checked-in notes (`.dockerignore` lists `llm`, so none of this reaches the image). Written from the code as of release 0.1.1 (2026-11-22). If the code
 and these notes disagree, the code wins; fix the notes.
 
 ## Overview

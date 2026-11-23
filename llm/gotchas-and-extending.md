@@ -4,12 +4,13 @@
 
 Backend:
 - **Missing folder must not wipe state.** `feed` only calls `forget_except` when
-  `find_folder` succeeded (`app.py:233`). Keep that guard on any new per-clip state.
+  `find_folder` succeeded (`app.py:239`). Keep that guard on any new per-clip state.
 - **Moving a clip out of the QuickShot tree counts as deleting it**: its likes, views and
   comments are erased on the next feed load. So does Drop's expiry (default 7 days unless the
   folder is "kept"). Moving it back later starts from zero.
-- **Corrupt state file -> silent reset.** A JSON parse error logs a warning and starts empty;
-  the next save overwrites the bad file (`app.py:120-121`, `:158-159`).
+- **Corrupt state file -> fresh start, old file kept.** A JSON parse error renames the file to
+  `stats.json.bad-<unix time>` / `comments.json.bad-<unix time>`, logs a warning and starts
+  empty (`app.py:120-124`, `:161-165`). Nothing cleans the `.bad-*` files up.
 - **View dedupe is in memory**: a restart allows one extra counted view per viewer per clip.
 - **Likes/views accept any well-formed clip id**, existing or not; the next feed load prunes
   unknown ones.
@@ -30,8 +31,8 @@ Page:
 - **Slides accumulate**: each round appends a `<section>` per clip and none are removed (only
   their videos). A very long session grows the DOM slowly; videos stay capped at 5.
 - **Re-entering a slide restarts it** (`currentTime = 0`).
-- **Sound fallback**: if an unmuted `play()` is refused, the clip plays muted but `unmuted`
-  stays true, so the rail shows "On".
+- **Sound fallback**: if an unmuted `play()` is refused, the clip plays muted and
+  `setSound(false)` turns sound off everywhere (the rail says "Off" and the chip comes back).
 - **Double-tap only likes**, never unlikes. Single taps are delayed 280 ms (to detect a
   double-tap) before pausing.
 - **Gone clips** are hidden (`display: none`) except the one on screen; they stay in
@@ -71,14 +72,14 @@ Platform:
 - Clip filter: `VIDEO_RE` and `clips_in` (`app.py:94-104`). Note browsers can't play every
   `video/*` type (e.g. some `.mov`/HEVC); the page has no per-clip error fallback today, a
   failed clip just shows the spinner.
-- Creator: `creator()` inside `feed` (`app.py:244-249`) and the page's `creator()` handle
-  formatting (`static/index.html:155`).
+- Creator: `creator()` inside `feed` (`app.py:250-255`) and the page's `creator()` handle
+  formatting (`static/index.html:170`).
 
 ### Change ordering or playback
-- Ordering: `nextRound` / `addRound` (`static/index.html:157-231`).
-- Window size: the `<= 2` in `activate` (`:243`). Keep it small; CLAUDE.md fixes it at +/-2
+- Ordering: `nextRound` / `addRound` (`static/index.html:172-246`).
+- Window size: the `<= 2` in `activate` (`:258`). Keep it small; CLAUDE.md fixes it at +/-2
   and each extra `<video>` with `preload=auto` costs bandwidth on Drop and phone memory.
-- View threshold: the `2000` ms timer in `activate` (`:253-257`); server dedupe `VIEW_GAP`.
+- View threshold: the `2000` ms timer in `activate` (`:269-273`); server dedupe `VIEW_GAP`.
 
 ### Admin features
 - Use `await is_admin(request)` (cached, fails closed). Only meaningful when `ADMIN_URL` is

@@ -1,12 +1,12 @@
 # The feed page (`static/index.html`)
 
-One self-contained file: CSS (`:10-108`), a tiny DOM skeleton (`:112-117`: `header#top`,
-`main#feed`, `div#empty`) and one inline script (`:119-446`). No framework, no build step,
+One self-contained file: CSS (`:10-117`), a tiny DOM skeleton (`:121-132`: `header#top`,
+`main#feed`, `div#empty`) and one inline script (`:134-468`). No framework, no build step,
 no external resources (fonts, scripts and icons are all inline; the favicon is a data: URI).
 All URLs are relative (`api/feed`, `../`, `drop_path + "api/files/"`), because the platform
 serves the app under `/quickshot/` (a test enforces this).
 
-## Global state (`:133-144`)
+## Global state (`:148-159`)
 
 | Name | Meaning |
 |---|---|
@@ -19,7 +19,7 @@ serves the app under `/quickshot/` (a test enforces this).
 | `active` | Index of the slide on screen (-1 before any) |
 | `unmuted` | Whether the user turned sound on |
 
-## Helpers (`:146-155`)
+## Helpers (`:161-170`)
 
 - `hue(s)`/`tint(s)`: string hash -> `hsl(h 75% 72%)`, used for creator avatars and commenter
   avatars (stable colour per name).
@@ -31,7 +31,7 @@ serves the app under `/quickshot/` (a test enforces this).
   and `.`; falls back to `quickshot` if that leaves nothing. Shown as `@handle`.
 - `esc()` is applied to every server string put into `innerHTML`.
 
-## Ordering: never runs out (`:157-169`)
+## Ordering: never runs out (`:172-184`)
 
 `nextRound(first)` returns one full pass over `data.clips`:
 - **First round:** clips not in `seen`, in the server's order (newest first), followed by the
@@ -42,11 +42,11 @@ serves the app under `/quickshot/` (a test enforces this).
   (With a single clip, `slice(-0)` returns the whole order, so everything is "recent" and
   the sort is a no-op; harmless.)
 
-`addRound(first)` (`:224-231`) appends a slide per clip to `order`, `slides`, the DOM, and the
+`addRound(first)` (`:239-246`) appends a slide per clip to `order`, `slides`, the DOM, and the
 IntersectionObserver. `activate()` calls `addRound(false)` when you reach any of the last 3
-slides (`:258`), so the feed is endless. Slides are never removed; only their `<video>` is.
+slides (`:274`), so the feed is endless. Slides are never removed; only their `<video>` is.
 
-## Slides and virtualisation (`:171-223`)
+## Slides and virtualisation (`:186-238`)
 
 - `makeSlide(c, i)` builds a `<section class="slide" data-i=i>` containing a `.frame` with a
   spinner placeholder (`.ph`), top/bottom gradient shades, the meta block (`@creator · age`,
@@ -67,12 +67,12 @@ slides (`:258`), so the feed is endless. Slides are never removed; only their `<
   connection and decoder; just removing the element can leave it buffering), removes the
   element, and puts the spinner back.
 
-**Window rule** (`activate`, `:242-246`): slides within **+/-2** of the active index have a
+**Window rule** (`activate`, `:257-261`): slides within **+/-2** of the active index have a
 video (neighbours attached and paused, so with `preload=auto` the next clips buffer ahead);
 every other slide is detached. So at most 5 `<video>` elements exist (rule in CLAUDE.md).
 The window is by slide index, so hidden ("gone") slides still count toward it.
 
-## Which slide is active (`:233-259`)
+## Which slide is active (`:248-275`)
 
 - One `IntersectionObserver` with threshold 0.6 on every slide; when a slide is >= 60%
   visible, `activate(i)`.
@@ -87,21 +87,21 @@ The window is by slide index, so hidden ("gone") slides still count toward it.
 Browsers only allow autoplay without a user gesture when muted. So videos start muted and the
 header shows a pulsing white **"Tap for sound"** chip (`#sound`, hidden in empty states by
 `header.bare`).
-- `play()` rejection fallback: if the video was unmuted (sound on), retry muted. Note that
-  `unmuted` stays true in that case, so the rail still says "On" while that clip is muted.
-- `setSound(on)` (`:305-311`): sets `unmuted`, hides the chip once sound is on (the chip only
+- `play()` rejection fallback: if the video was unmuted (sound on), retry muted and call
+  `setSound(false)`, so the rail says "Off" and the "Tap for sound" chip shows again.
+- `setSound(on)` (`:321-327`): sets `unmuted`, hides the chip once sound is on (the chip only
   ever turns sound on), unmutes/plays the active video inside the tap gesture, updates
   `muted` on the other attached videos and repaints every slide. The rail's sound button and
   the `m` key toggle it. Once on, it stays on for the rest of the session (new videos are
   created with `muted = !unmuted`).
 
-### View timer (`:253-257`)
+### View timer (`:269-273`)
 After **2 s** on the active slide: add the clip to `seen` (persist the last 2000), then
 `POST api/views/{id} {viewer}`; on reply update `views` in `byId` and repaint every slide of
 that clip. Errors ignored. Swiping away within 2 s cancels it. The server separately dedupes
 to once per 30 min.
 
-## Taps and the heart burst (`:261-302`)
+## Taps and the heart burst (`:277-318`)
 
 One delegated `click` listener on `#feed`:
 - Rail buttons first: `[data-like]` -> `toggleLike`, `[data-comments]` -> `openComments`,
@@ -115,14 +115,14 @@ One delegated `click` listener on `#feed`:
 - `burst(s, x, y)` drops a filled heart at the tap point with a random +/-20 deg tilt
   (`--r`), animated 0.8 s (scale pop, float up, fade), removed after 850 ms.
 
-### Likes: optimistic update (`toggleLike`, `:293-302`)
+### Likes: optimistic update (`toggleLike`, `:309-318`)
 Flip `liked`, adjust `likes` by +/-1, repaint all slides showing that clip (the same clip
 appears once per round), then `POST api/likes/{id} {viewer, liked}`. If the response has
 `likes`, adopt the server's `likes`/`liked` ("the box has the final word"). On a network
 error, revert. (A non-OK JSON response without `likes`, e.g. 400, leaves the optimistic
 value.) Repaint again.
 
-## Comments sheet (`:314-371`)
+## Comments sheet (`:330-387`)
 
 - `openComments(id)`: sets `sheetFor`, quietly closes any open sheet, appends a backdrop
   (`.sheet-bg`, click closes) and a bottom sheet (`role="dialog"`, `min(100vw,560px)` wide,
@@ -139,20 +139,20 @@ value.) Repaint again.
   yet. Say something."
 - Delete: `confirm()`, then `DELETE api/comments/{id}/{cid}?viewer=`; refresh count and list,
   or show the error.
-- While a sheet is open, the list is re-polled **every 8 s** (`:371`) so other people's
+- While a sheet is open, the list is re-polled **every 8 s** (`:387`) so other people's
   comments appear.
 - **Name change:** the name button opens `prompt()`; a non-blank answer is trimmed, cut to 24
   characters, saved to `qs.name`, and shown on the button. Affects future comments only.
 - `closeComments(quiet)`: removes sheet and backdrop; non-quiet also clears `sheetFor`.
 
-## Keyboard (`:373-384`)
+## Keyboard (`:395-406`)
 
 Inside a textarea/input only `Escape` (close sheet) is handled. Otherwise:
 `ArrowDown`/`j` next clip, `ArrowUp`/`k` previous (smooth `scrollIntoView`, snapping then
 triggers activation), `Space` pause/play, `m` sound, `l` like toggle, `c` open comments,
 `Escape` close comments.
 
-## Loading, empty states, refresh (`:386-445`)
+## Loading, empty states, refresh (`:408-467`)
 
 - `fetchFeed()`: `GET api/feed?viewer=` with `cache: "no-store"`; throws the server `detail`
   on non-OK.
@@ -170,7 +170,7 @@ triggers activation), `Space` pause/play, `m` sound, `l` like toggle, `c` open c
      **Refresh**.
 - `toast(t)`: white pill at the top for 2.6 s.
 
-### 30 s refresh (`:425-443`)
+### 30 s refresh (`:447-465`)
 Every 30 s, if the feed has loaded and the tab is visible:
 - re-fetch (errors and an empty clip list are ignored, so a Drop hiccup doesn't blank the feed);
 - `fresh` = clips not in `byId`; `gone` = ids in `byId` missing from the new list;

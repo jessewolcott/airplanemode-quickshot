@@ -32,20 +32,20 @@
 
 Proxying video through a 64 MB Python container would cost memory, CPU and latency on the
 NanoPi, and duplicate Range handling. The feed returns `drop_path` (env `DROP_PATH`, default
-`../drop/`), and the page builds `drop_path + "api/files/" + id` (`static/index.html:208`).
+`../drop/`), and the page builds `drop_path + "api/files/" + id` (`static/index.html:223`).
 On the box `../drop/` is resolved against `/quickshot/` -> `/drop/api/files/{id}`, i.e. the
 same origin, through Caddy. In standalone dev `DROP_PATH` is an absolute
 `http://localhost:8766/` (`compose.yaml`).
 
 ## Request flow: opening the page
 
-1. `GET /quickshot/` -> `index()` (`app.py:383`) serves `static/index.html` with
+1. `GET /quickshot/` -> `index()` (`app.py:389`) serves `static/index.html` with
    `Cache-Control: no-cache`.
 2. The page creates/reads its viewer id and name in `localStorage`, then `start()` calls
-   `GET api/feed?viewer=<id>` (`static/index.html:409-424`).
+   `GET api/feed?viewer=<id>` (`static/index.html:431-446`).
 3. The backend calls Drop `GET /api/items` (5 s timeout, in a worker thread), finds the folder,
    collects clips, prunes counts for deleted clips (only if the folder was found), and returns
-   clips newest first with counts and `liked` for this viewer (`app.py:225-256`).
+   clips newest first with counts and `liked` for this viewer (`app.py:231-262`).
 4. The page builds an ordered list (unseen newest first, then shuffled), makes one `<section>`
    per entry, and attaches `<video>` elements only around the visible slide.
 5. Every 30 s it re-fetches the feed to refresh counts and slot in new uploads.
@@ -53,7 +53,7 @@ same origin, through Caddy. In standalone dev `DROP_PATH` is an absolute
 ## How it plugs into the platform
 
 - Platform `compose.yaml` service `quickshot`: image
-  `ghcr.io/jessewolcott/airplanemode-quickshot:0.1.0` (pinned), env `DROP_URL=http://drop:8000`,
+  `ghcr.io/jessewolcott/airplanemode-quickshot:0.1.1` (pinned), env `DROP_URL=http://drop:8000`,
   `ADMIN_URL=http://admin:8000`, volume `quickshot-data:/data`, `mem_limit ${QUICKSHOT_MEM:-64m}`,
   `restart: unless-stopped`. `DROP_PATH` is left at its default `../drop/`.
 - Platform `compose.dev.yaml` builds this repo as `airplanemode-quickshot:dev`.

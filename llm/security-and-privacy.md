@@ -9,12 +9,12 @@ comment. Moderation = the admin's delete button.
 
 ## Viewer ids are private
 
-- Each browser makes a random 20-character id (`static/index.html:138-139`) and keeps it in
+- Each browser makes a random 20-character id (`static/index.html:153-154`) and keeps it in
   `localStorage` (`qs.viewer`). It's effectively a bearer secret: whoever knows it can unlike
   that viewer's likes and delete that viewer's comments.
 - So the API **never returns any viewer id**. Instead responses carry values computed for the
   caller: `liked` in the feed and like response, `mine` / `can_delete` on comments. The only
-  serialiser for comments is `public()` (`app.py:322-324`), which omits `viewer`.
+  serialiser for comments is `public()` (`app.py:328-330`), which omits `viewer`.
 - `test_comments` asserts `"viewer"` and the viewer id don't appear in the comment list JSON.
 - Viewer ids are stored server-side in `stats.json` (like sets) and `comments.json` (comment
   author). They're random strings, not tied to MAC/IP.
@@ -22,7 +22,7 @@ comment. Moderation = the admin's delete button.
 - Viewer ids appear in query strings (`?viewer=`) for GETs and DELETE; Caddy access logs, if
   enabled, could record them. They're also logged nowhere by the app itself.
 
-## Admin recognition (`app.py:192-216`)
+## Admin recognition (`app.py:198-222`)
 
 Same scheme as Drop (decision 0013 in the platform repo):
 1. Read the `am_admin` cookie. The platform admin panel sets it on the same origin (the box),
@@ -45,13 +45,13 @@ admin-gated.
 
 ## `X-QuickShot: 1` header (CSRF guard)
 
-`need_header()` (`app.py:220-222`) rejects any state-changing request without
+`need_header()` (`app.py:226-228`) rejects any state-changing request without
 `X-QuickShot: 1` (403). Browsers can't add a custom header to a cross-site request without a
 CORS preflight, and QuickShot sends no CORS headers, so another website open on a phone can't
 like/comment/delete via that phone (the `am_admin` cookie would otherwise ride along on a
 cross-site DELETE). Required on: `POST api/setup`, `POST api/likes/*`, `POST api/views/*`,
 `POST api/comments/*`, `DELETE api/comments/*/*`. Not required on the GETs. The page's `H`
-constant (`static/index.html:122`) sends it on every change. QuickShot sends `X-Drop: 1` to
+constant (`static/index.html:137`) sends it on every change. QuickShot sends `X-Drop: 1` to
 Drop for the same reason on Drop's side.
 
 ## Input validation and output escaping
@@ -80,7 +80,7 @@ comment gap. Accepted: the audience is the people sharing the router.
 QuickShot doesn't gate video. The browser fetches `../drop/api/files/{id}` directly; Drop
 serves `video/*` inline (with a sandbox CSP and `nosniff`) even when downloads are turned off
 for that item. QuickShot's only nod to "downloads off" is disabling the context menu on that
-`<video>` (`static/index.html:207`), which is cosmetic.
+`<video>` (`static/index.html:222`), which is cosmetic.
 
 ## Container hardening
 

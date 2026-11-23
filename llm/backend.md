@@ -1,7 +1,7 @@
 # Backend (`app.py`)
 
-One module, sections: Drop access (`:67-104`), stats (`:107-146`), comments (`:149-189`),
-admin check (`:192-216`), API (`:219-385`). Social state details are in
+One module, sections: Drop access (`:67-104`), stats (`:107-149`), comments (`:152-195`),
+admin check (`:198-222`), API (`:225-391`). Social state details are in
 [social-state.md](social-state.md); this file covers Drop access and the endpoints.
 
 ## Drop access
@@ -27,7 +27,7 @@ newest first, each item roughly:
 pinned, nodownload, parent (folder id or null), kept, download (bool), blocked_by}`.
 QuickShot uses `id`, `kind`, `name`, `parent`, `type`, `size`, `created`, `download`.
 `download` is Drop's computed "downloads allowed" (false if the item or any ancestor has
-downloads off). QuickShot filters out non-dict entries defensively (`app.py:228`).
+downloads off). QuickShot filters out non-dict entries defensively (`app.py:234`).
 
 `POST /api/folders {name, parent}` creates a folder and returns the new item (`id`, `name`,
 ...). QuickShot only ever calls it with `{"name": FOLDER, "parent": None}`.
@@ -52,7 +52,7 @@ also guards against cycles). Then returns every `kind == "file"` item whose `par
 that set, whose id matches `ID_RE`, and whose `type` matches `VIDEO_RE`. PDFs, images, text
 notes in the folder are ignored. O(folders x items), fine for a hotspot's Drop.
 
-### Creators (`app.py:241-249`, inside `feed`)
+### Creators (`app.py:247-255`, inside `feed`)
 
 `folders` maps id -> folder item. `creator(c)` starts at the clip's parent folder and walks
 up until it reaches a folder whose parent is the QuickShot folder (or runs out / loops, via
@@ -67,12 +67,12 @@ up until it reaches a folder whose parent is the QuickShot folder (or runs out /
 
 All paths are relative to the app root (the platform mounts it at `/quickshot/`).
 Errors from `HTTPException` are rendered as `{"detail": "..."}` by the custom handler
-(`app.py:378-380`). Pydantic body validation errors use FastAPI's default 422 shape.
+(`app.py:384-386`). Pydantic body validation errors use FastAPI's default 422 shape.
 
-### `GET /` (`app.py:383-385`)
+### `GET /` (`app.py:389-391`)
 Serves `static/index.html` with `Cache-Control: no-cache` (so a new image's page is picked up).
 
-### `GET /api/feed?viewer=` (`app.py:225-256`)
+### `GET /api/feed?viewer=` (`app.py:231-262`)
 No header needed (read-only). Steps:
 1. `drop("GET", "/api/items")` (503 if Drop is down).
 2. `find_folder`, then `clips_in` (empty list if no folder).
@@ -98,32 +98,32 @@ No header needed (read-only). Steps:
 Counts are read without taking the locks (single-threaded event loop; reads between awaits
 are consistent enough).
 
-### `POST /api/setup` (`app.py:259-267`)
+### `POST /api/setup` (`app.py:265-273`)
 Needs `X-QuickShot: 1` (else 403). Re-reads Drop's items; if no matching folder, creates one
 via `drop("POST", "/api/folders", {"name": FOLDER, "parent": None})` and logs it. Idempotent:
 returns `{"folder": {"id", "name"}}` for the existing or new folder. Not admin-gated: anyone
 on the hotspot can create the folder (same as anyone can create folders in Drop).
 
-### `POST /api/likes/{cid}` body `{viewer, liked}` (`app.py:284-296`)
+### `POST /api/likes/{cid}` body `{viewer, liked}` (`app.py:290-302`)
 Header required. 400 if `cid` isn't 16 hex or `viewer` fails `VIEWER_RE` (`check_clip`).
 Under the stats lock: add (if `liked` and fewer than `MAX_LIKERS`) or discard the viewer,
 save, return `{"likes": n, "liked": bool}`. Does **not** check that the clip exists in Drop.
 
-### `POST /api/views/{cid}` body `{viewer}` (`app.py:299-313`)
+### `POST /api/views/{cid}` body `{viewer}` (`app.py:305-319`)
 Header required, same validation. Counts a view if this `(cid, viewer)` wasn't counted in the
 last `VIEW_GAP`; saves only when counted. Returns `{"views": n}`.
 
-### `GET /api/comments/{cid}?viewer=` (`app.py:327-332`)
+### `GET /api/comments/{cid}?viewer=` (`app.py:333-338`)
 No header (read-only). 404 if `cid` isn't 16 hex. Returns
 `{"comments": [ {id, name, text, at, mine, can_delete} ...oldest first], "admin": bool}`.
 `viewer` isn't format-checked here; an unknown/empty viewer just gets `mine: false`.
 
-### `POST /api/comments/{cid}` body `{viewer, name?, text}` (`app.py:335-356`)
+### `POST /api/comments/{cid}` body `{viewer, name?, text}` (`app.py:341-362`)
 Header required; validation, cleaning, rate limit; returns
 `{"comment": {...public form...}, "count": n}`. Errors: 400 empty text, 413 too long,
 429 too fast. Details in social-state.md.
 
-### `DELETE /api/comments/{cid}/{comment_id}?viewer=` (`app.py:359-375`)
+### `DELETE /api/comments/{cid}/{comment_id}?viewer=` (`app.py:365-381`)
 Header required. 404 for malformed ids or an unknown comment; 403 unless admin or the
 comment's own viewer. Returns `{"ok": true, "count": n}`.
 

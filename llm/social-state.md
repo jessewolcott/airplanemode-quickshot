@@ -9,14 +9,15 @@ Two singletons, created **lazily** on first use:
 
 | Object | Getter | File | In memory only |
 |---|---|---|---|
-| `Stats` (`app.py:108-136`) | `get_stats()` (`:142`) | `stats.json` | `recent` (view dedupe) |
-| `Comments` (`app.py:149-172`) | `get_comments()` (`:178`) | `comments.json` | `last` (rate limit) |
+| `Stats` (`app.py:108-139`) | `get_stats()` (`:145`) | `stats.json` | `recent` (view dedupe) |
+| `Comments` (`app.py:152-178`) | `get_comments()` (`:184`) | `comments.json` | `last` (rate limit) |
 
 - Lazy creation means the `asyncio.Lock` in each `__init__` is created inside the running
   event loop, and tests can simulate a restart with `qs.stats, qs.comments = None, None`.
 - Loading: `FileNotFoundError` -> start empty silently; any other error (corrupt JSON, wrong
-  shape) -> log a warning and start empty. **Gotcha:** the next save then overwrites the
-  corrupt file, so a corrupt file means that state is lost.
+  shape) -> rename the file to `<name>.bad-<unix time>`, log a warning and start empty. The
+  damaged file is kept for a look, not overwritten by the next save (test
+  `test_a_damaged_file_is_kept_not_overwritten`).
 - Saving (`save()`): `DATA.mkdir(parents=True, exist_ok=True)`, write a sibling temp file
   (`stats.tmp` / `comments.tmp`, via `with_suffix(".tmp")`), then `tmp.replace(target)`.
   `replace` is an atomic rename on the same filesystem, so a crash leaves either the old or
@@ -41,17 +42,17 @@ dropped when saving.
 Written with `ensure_ascii=False` (emoji/accents stay readable). Clips with empty lists are
 dropped when saving.
 
-## Likes (`app.py:284-296`)
+## Likes (`app.py:290-302`)
 
 - Per-viewer set per clip, so a like counts once per viewer (per browser). Liking again is a
   no-op; `liked: false` removes it.
 - `MAX_LIKERS = 2000` per clip: further likes are silently ignored (the response's `liked`
   will be false). Unlikes always work.
 - Response `{"likes", "liked"}` is the authoritative value the page reconciles to.
-- The feed reports `likes = len(set)` and `liked = viewer in set` (`app.py:252-253`).
+- The feed reports `likes = len(set)` and `liked = viewer in set` (`app.py:258-259`).
 - Clearing browser storage creates a new viewer; its old like stays counted (decision 0014).
 
-## Views (`app.py:299-313`)
+## Views (`app.py:305-319`)
 
 - `recent[(clip, viewer)] = time` of the last counted view, memory only.
 - A view counts if `now - recent.get(key, 0) >= VIEW_GAP` (30 min). Then increment, save.
@@ -61,7 +62,7 @@ dropped when saving.
 
 ## Comments
 
-### Posting (`app.py:335-356`)
+### Posting (`app.py:341-362`)
 Order of checks matters:
 1. `X-QuickShot` header (403), then `check_clip` (400 for bad clip id / viewer).
 2. `text = clean_text(body.text, 300)`. If empty -> **400 "Write something first."**
@@ -80,7 +81,7 @@ The rate limit is per viewer id (which the client chooses), so it's a politeness
 an abuse control. `last` grows by one entry per distinct commenting viewer and is never pruned
 (memory only; tiny at hotspot scale).
 
-### `clean_text(text, limit)` (`app.py:185-189`)
+### `clean_text(text, limit)` (`app.py:191-195`)
 1. Unicode NFC normalise (`None` -> `""`).
 2. Drop every character whose Unicode category starts with `C` (control, format, unassigned,
    private use, surrogates), **except `\n`**. That removes `\x07`, `\r`, tabs, zero-width
@@ -98,20 +99,20 @@ Test example: `"  so good \x07\n\n\n\nwow  "` -> `"so good \n\nwow"`; name `"  A
   Changing the name only affects future comments; stored comments keep the name they were
   posted with.
 
-### Listing (`app.py:322-332`)
+### Listing (`app.py:328-338`)
 `public(c, viewer, admin)` is the only shape a comment ever leaves the server in:
 `{id, name, text, at, mine: c.viewer == viewer, can_delete: admin or mine}`. The stored
 `viewer` field is never included. The list response also carries `admin` (whether the caller
 is the admin). Oldest first.
 
-### Deleting (`app.py:359-375`)
+### Deleting (`app.py:365-381`)
 - Malformed clip or comment id -> 404. Admin check happens (possibly a network call to the
   admin service) **before** taking the lock.
 - Under the lock: find the comment (404 if missing); allowed if admin, or if `viewer` matches
   `VIEWER_RE` **and** equals the comment's stored viewer; else 403.
 - Remove, save, return `{"ok": true, "count": n}`.
 
-## Forgetting deleted clips (`app.py:233-239`, `:130-136`, `:168-172`)
+## Forgetting deleted clips (`app.py:239-245`, `:133-139`, `:174-178`)
 
 On every `GET /api/feed`, if the QuickShot folder was found, each store's
 `forget_except(ids)` drops entries for clip ids not currently in the folder tree (likes,
