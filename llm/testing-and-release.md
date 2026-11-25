@@ -93,7 +93,7 @@ Image: `ghcr.io/jessewolcott/airplanemode-quickshot`.
 3. In the platform repo, bump the pinned tag in `compose.yaml`
    (`ghcr.io/jessewolcott/airplanemode-quickshot:X.Y.Z`; never `latest`). The Caddy route
    and `portal/apps.json` entry already exist.
-Released so far: 0.1.0, 0.1.1 (home button).
+Released so far: 0.1.0, 0.1.1 (home button), 0.1.2 (prunes old `.bad-*` copies), 0.1.3 (setup passes the admin session to read-only Drop).
 
 ## Hardware status
 
