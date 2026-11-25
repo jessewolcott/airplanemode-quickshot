@@ -425,7 +425,8 @@ function showEmpty(d, err) {
          <div class="row"><a class="btn primary" href="${esc(d.drop_path)}#f=${d.folder.id}">Open ${name} in Drop</a><button class="btn ghost" onclick="start()">Refresh</button></div>`}</div>`;
   $("#setup")?.addEventListener("click", async () => {
     const r = await fetch("api/setup", { method: "POST", headers: H });
-    if (r.ok) start(); else toast("Couldn't create it. Is Drop running?");
+    if (r.ok) start();
+    else toast(r.status === 403 ? "Only the admin can create it. Sign in to the admin panel first." : "Couldn't create it. Is Drop running?");
   });
 }
 async function fetchFeed() {

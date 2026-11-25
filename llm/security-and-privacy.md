@@ -3,9 +3,14 @@
 ## Trust model
 
 The hotspot password is the access control (decision 0014, same as Drop). Anyone on the
-hotspot can read the feed, like, view, comment under any name and create the QuickShot folder.
-There are no accounts. The only privileged role is the AirplaneMode admin, who can delete any
-comment. Moderation = the admin's delete button.
+hotspot can read the feed, like, view and comment under any name. There are no accounts. The
+only privileged role is the AirplaneMode admin, who can delete any comment. Moderation = the
+admin's delete button.
+
+Creating the QuickShot folder and putting clips in it are writes to Drop, and on the box Drop
+is read-only for everyone but the admin unless the admin opened it up (platform decision
+0026). QuickShot doesn't decide that itself: `POST api/setup` forwards the caller's
+`am_admin` cookie to Drop and passes Drop's 403 on. Standalone Drop lets anyone.
 
 ## Viewer ids are private
 
@@ -14,7 +19,7 @@ comment. Moderation = the admin's delete button.
   that viewer's likes and delete that viewer's comments.
 - So the API **never returns any viewer id**. Instead responses carry values computed for the
   caller: `liked` in the feed and like response, `mine` / `can_delete` on comments. The only
-  serialiser for comments is `public()` (`app.py:328-330`), which omits `viewer`.
+  serialiser for comments is `public()` (`app.py:369-371`), which omits `viewer`.
 - `test_comments` asserts `"viewer"` and the viewer id don't appear in the comment list JSON.
 - Viewer ids are stored server-side in `stats.json` (like sets) and `comments.json` (comment
   author). They're random strings, not tied to MAC/IP.
@@ -22,7 +27,7 @@ comment. Moderation = the admin's delete button.
 - Viewer ids appear in query strings (`?viewer=`) for GETs and DELETE; Caddy access logs, if
   enabled, could record them. They're also logged nowhere by the app itself.
 
-## Admin recognition (`app.py:198-222`)
+## Admin recognition (`app.py:237-261`)
 
 Same scheme as Drop (decision 0013 in the platform repo):
 1. Read the `am_admin` cookie. The platform admin panel sets it on the same origin (the box),
@@ -37,15 +42,17 @@ Same scheme as Drop (decision 0013 in the platform repo):
    else, including errors and timeouts, = not admin (fails closed).
 
 Consequences: after the admin signs out, QuickShot may still treat the token as admin for up
-to 30 s. The token is only forwarded to `ADMIN_URL` (internal Docker network), never logged.
+to 30 s. The token is forwarded to `ADMIN_URL`, and (by `POST api/setup`, as-is, without the
+`TOKEN_RE` check) to Drop's `POST /api/folders`; both on the internal Docker network. Drop
+checks its shape itself. It's never logged.
 
 Used by `GET /api/comments/{cid}` (to set `admin` and `can_delete`) and
-`DELETE /api/comments/{cid}/{comment}` (to allow deleting others' comments). Nothing else is
-admin-gated.
+`DELETE /api/comments/{cid}/{comment}` (to allow deleting others' comments). Nothing else in
+QuickShot is admin-gated; folder creation is gated by Drop (above).
 
 ## `X-QuickShot: 1` header (CSRF guard)
 
-`need_header()` (`app.py:226-228`) rejects any state-changing request without
+`need_header()` (`app.py:265-267`) rejects any state-changing request without
 `X-QuickShot: 1` (403). Browsers can't add a custom header to a cross-site request without a
 CORS preflight, and QuickShot sends no CORS headers, so another website open on a phone can't
 like/comment/delete via that phone (the `am_admin` cookie would otherwise ride along on a

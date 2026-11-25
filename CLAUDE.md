@@ -29,6 +29,10 @@ The real test bed is the platform dev stack (compose.dev.yaml builds this repo).
   must not wipe everything).
 - Admin = platform admin session (`am_admin` cookie checked at `ADMIN_URL/api/admin/session`,
   same as Drop). The admin can delete any comment.
+- Drop is read-only for everyone but the admin on the box (platform decision 0026), unless the
+  admin opens it up. Writes to Drop (`POST api/setup` -> Drop's `POST /api/folders`) forward
+  the caller's `am_admin` cookie (`drop(..., cookie=...)`); Drop's 403 is passed on as 403
+  with its message (`DropRefused`), not as 503.
 - Page: relative URLs only (a test checks); at most current±2 `<video>` elements.
 - Keep the look its own (name, colours, icons); it's a generic short-video feed, not a copy
   of any particular app's branding.

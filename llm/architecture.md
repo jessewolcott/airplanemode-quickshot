@@ -7,6 +7,7 @@
  ─────────────                        ─────────────────────────
  /quickshot/  (index.html) ──Caddy──> quickshot:8000  (FastAPI, app.py, 64m)
    │  GET  api/feed ───────────────>    │  GET http://drop:8000/api/items  (X-Drop: 1)
+   │  POST api/setup ──────────────>    │  POST http://drop:8000/api/folders (X-Drop: 1, caller's am_admin)
    │  POST api/likes|views|comments >    │  /data/stats.json, /data/comments.json
    │                                     │  GET http://admin:8000/api/admin/session (am_admin cookie)
    │
@@ -17,7 +18,9 @@
   For the feed it reads Drop's full flat item list, picks out the QuickShot folder and the
   videos below it, and decorates each clip with its like/view/comment counts.
 - **Drop** (`../airplanemode-drop`): the file store. Uploading clips to QuickShot is just
-  uploading into Drop's QuickShot folder. Drop serves `GET api/files/{id}` with HTTP Range
+  uploading into Drop's QuickShot folder. On the box Drop is read-only for everyone but the
+  admin unless the admin lets everyone change it (platform decision 0026), so by default only
+  the admin puts clips in and creates the folder; watching is open to all. Drop serves `GET api/files/{id}` with HTTP Range
   support, so `<video>` can seek. Drop allows inline streaming of `video/*` even when
   downloads are turned off for an item (its `INLINE_TYPES`); "downloads off" only blocks the
   `?dl=` attachment path for non-admins.
@@ -39,13 +42,13 @@ same origin, through Caddy. In standalone dev `DROP_PATH` is an absolute
 
 ## Request flow: opening the page
 
-1. `GET /quickshot/` -> `index()` (`app.py:389`) serves `static/index.html` with
+1. `GET /quickshot/` -> `index()` (`app.py:430-432`) serves `static/index.html` with
    `Cache-Control: no-cache`.
 2. The page creates/reads its viewer id and name in `localStorage`, then `start()` calls
-   `GET api/feed?viewer=<id>` (`static/index.html:431-446`).
+   `GET api/feed?viewer=<id>` (`static/index.html:438-447`).
 3. The backend calls Drop `GET /api/items` (5 s timeout, in a worker thread), finds the folder,
    collects clips, prunes counts for deleted clips (only if the folder was found), and returns
-   clips newest first with counts and `liked` for this viewer (`app.py:231-262`).
+   clips newest first with counts and `liked` for this viewer (`app.py:270-301`).
 4. The page builds an ordered list (unseen newest first, then shuffled), makes one `<section>`
    per entry, and attaches `<video>` elements only around the visible slide.
 5. Every 30 s it re-fetches the feed to refresh counts and slot in new uploads.
@@ -66,13 +69,13 @@ same origin, through Caddy. In standalone dev `DROP_PATH` is an absolute
 
 | Var | Default | Used at | Meaning |
 |---|---|---|---|
-| `DATA_DIR` | `/data` | `app.py:44` | Where `stats.json` / `comments.json` live (tests point it at a temp dir) |
-| `DROP_URL` | `http://drop:8000` | `app.py:47` | Drop's API from inside the stack (trailing `/` stripped) |
-| `DROP_PATH` | `../drop/` | `app.py:48` | Prefix the *browser* streams from; returned verbatim in the feed |
-| `QUICKSHOT_FOLDER` | `QuickShot` | `app.py:49` | Name of the top-level Drop folder (matched case-insensitively) |
-| `ADMIN_URL` | empty | `app.py:61` | Platform admin service; empty disables admin recognition entirely |
+| `DATA_DIR` | `/data` | `app.py:45` | Where `stats.json` / `comments.json` live (tests point it at a temp dir) |
+| `DROP_URL` | `http://drop:8000` | `app.py:48` | Drop's API from inside the stack (trailing `/` stripped) |
+| `DROP_PATH` | `../drop/` | `app.py:49` | Prefix the *browser* streams from; returned verbatim in the feed |
+| `QUICKSHOT_FOLDER` | `QuickShot` | `app.py:50` | Name of the top-level Drop folder (matched case-insensitively) |
+| `ADMIN_URL` | empty | `app.py:62` | Platform admin service; empty disables admin recognition entirely |
 
-## Constants (`app.py:50-62`)
+## Constants (`app.py:51-63`)
 
 | Name | Value | Meaning |
 |---|---|---|
@@ -95,4 +98,4 @@ All state (stats, comments, admin cache, rate-limit maps) is in-process; the `as
 only serialise within that one process. Running more than one worker would break the locks
 and let workers overwrite each other's JSON files. Blocking work (HTTP to Drop/admin, file
 writes) runs in `anyio.to_thread.run_sync` so the event loop stays responsive.
-FastAPI's docs/OpenAPI endpoints are disabled (`app.py:64`).
+FastAPI's docs/OpenAPI endpoints are disabled (`app.py:65`).

@@ -28,13 +28,16 @@ ITEMS = [
     {"id": C4, "kind": "file", "name": "elsewhere.mp4", "type": "video/mp4", "parent": None, "created": 40},
     {"id": PDF, "kind": "file", "name": "map.pdf", "type": "application/pdf", "parent": QS, "created": 50},
 ]
-drop_state = {"items": list(ITEMS), "created": []}
+drop_state = {"items": list(ITEMS), "created": [], "read_only": False}
+ADMIN = "a" * 32
 
 
-def fake_drop(method, path, body=None):
+def fake_drop(method, path, body=None, cookie=None):
     if method == "GET" and path == "/api/items":
         return {"items": drop_state["items"]}
     if method == "POST" and path == "/api/folders":
+        if drop_state["read_only"] and cookie != ADMIN:   # Drop on the box: only the admin adds folders
+            raise qs.DropRefused("Only the admin can add or change things in Drop.")
         f = {"id": "e" * 16, "kind": "folder", "name": body["name"], "parent": None}
         drop_state["items"].append(f)
         drop_state["created"].append(f)
@@ -84,12 +87,23 @@ def test_setup_creates_the_folder_once():
         assert f["name"] == "QuickShot" and len(drop_state["created"]) == 1
         ok(c.post("/api/setup", headers=H))                           # already there: nothing new
         assert len(drop_state["created"]) == 1
+        # read-only Drop: a non-admin gets Drop's 403 (not "can't reach Drop"); the admin's
+        # session cookie is passed on, so the admin can create it
+        drop_state["items"] = [i for i in ITEMS if i["id"] != QS]
+        drop_state["read_only"] = True
+        r = c.post("/api/setup", headers=H)
+        assert r.status_code == 403 and "admin" in r.json()["detail"], r.text
+        c.cookies.set("am_admin", ADMIN)
+        assert ok(c.post("/api/setup", headers=H))["folder"]["name"] == "QuickShot"
     finally:
+        c.cookies.clear()
+        drop_state["read_only"] = False
+        drop_state["created"] = []
         drop_state["items"] = list(ITEMS)
 
 
 def test_drop_down():
-    qs.drop_call = lambda *a: (_ for _ in ()).throw(OSError("refused"))
+    qs.drop_call = lambda *a, **k: (_ for _ in ()).throw(OSError("refused"))
     try:
         r = c.get("/api/feed")
         assert r.status_code == 503 and "Drop" in r.json()["detail"]

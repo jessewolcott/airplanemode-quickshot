@@ -4,14 +4,14 @@
 
 Backend:
 - **Missing folder must not wipe state.** `feed` only calls `forget_except` when
-  `find_folder` succeeded (`app.py:239`). Keep that guard on any new per-clip state.
+  `find_folder` succeeded (`app.py:278`). Keep that guard on any new per-clip state.
 - **Moving a clip out of the QuickShot tree counts as deleting it**: its likes, views and
   comments are erased on the next feed load. So does Drop's expiry (default 7 days unless the
   folder is "kept"). Moving it back later starts from zero.
 - **Corrupt state file -> fresh start, old file kept.** A JSON parse error renames the file to
   `stats.json.bad-<unix time>` / `comments.json.bad-<unix time>`, logs a warning and starts
-  empty (`set_aside`, `app.py:111`). Each load then keeps only the newest `KEEP_BAD` (3) copies
-  per file and deletes older ones (`prune_bad`, `app.py:118`), so they can't pile up.
+  empty (`set_aside`, `app.py:125`). Each load then keeps only the newest `KEEP_BAD` (3) copies
+  per file and deletes older ones (`prune_bad`, `app.py:132`), so they can't pile up.
 - **View dedupe is in memory**: a restart allows one extra counted view per viewer per clip.
 - **Likes/views accept any well-formed clip id**, existing or not; the next feed load prunes
   unknown ones.
@@ -23,7 +23,14 @@ Backend:
 - **Drop calls are synchronous urllib in threads with a 5 s timeout.** Every feed request
   (and every 30 s refresh from every phone) fetches Drop's whole item list.
 - `Comments.last` (rate-limit map) is never pruned; fine for a hotspot.
-- `drop_call` / `check_admin_token` are indirections for tests; call through them.
+- `drop_call` / `check_admin_token` are indirections for tests; call through them. A fake
+  `drop_call` must accept `cookie=` (it's passed as a keyword).
+- **Writes to Drop need the person's admin session.** On the box Drop is read-only for
+  everyone but the admin unless opened up (platform decision 0026). Any new write to Drop
+  must forward `request.cookies.get("am_admin")` as `cookie=`, or it fails for the admin too.
+  A 403 from Drop comes back as 403 with Drop's message (`DropRefused`), not 503.
+- **Getting clips in is the admin's job by default.** Guests can watch, like and comment, but
+  can't create the folder or upload into it until the admin lets everyone change Drop.
 
 Page:
 - **The relative-URL test is strict**: no `src="/..."`, `href="/..."`, `http(s):` or `//` in
@@ -70,10 +77,10 @@ Platform:
 - Add a restart test (reset the singleton to `None`, re-read).
 
 ### Change what counts as a clip or a creator
-- Clip filter: `VIDEO_RE` and `clips_in` (`app.py:94-104`). Note browsers can't play every
+- Clip filter: `VIDEO_RE` and `clips_in` (`app.py:108-118`). Note browsers can't play every
   `video/*` type (e.g. some `.mov`/HEVC); the page has no per-clip error fallback today, a
   failed clip just shows the spinner.
-- Creator: `creator()` inside `feed` (`app.py:250-255`) and the page's `creator()` handle
+- Creator: `creator()` inside `feed` (`app.py:289-294`) and the page's `creator()` handle
   formatting (`static/index.html:170`).
 
 ### Change ordering or playback

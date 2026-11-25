@@ -163,7 +163,9 @@ triggers activation), `Space` pause/play, `m` sound, `l` like toggle, `c` open c
   1. **Error** (e.g. Drop down, 503): "Can't load the feed", the message, **Try again**.
   2. **No folder** (`d.folder === null`): explains the feed comes from Drop's folder named
      `folder_name`, which doesn't exist yet; **Create the QuickShot folder** posts
-     `api/setup` and restarts, or toasts "Couldn't create it. Is Drop running?".
+     `api/setup` and restarts. On 403 (Drop is read-only and this isn't the admin) it toasts
+     "Only the admin can create it. Sign in to the admin panel first."; on any other failure
+     "Couldn't create it. Is Drop running?".
   3. **Folder but no clips**: tells you to put short videos in it (subfolders become
      creators, tap **keep** so they don't expire); **Open QuickShot in Drop** links to
      `drop_path + "#f=" + folder.id` (Drop's page opens that folder from the hash), plus

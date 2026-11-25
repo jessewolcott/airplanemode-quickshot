@@ -19,14 +19,16 @@ full-screen vertical feed you swipe through, on every phone on the hotspot, with
   Double-tap for a heart. Subfolders are "creators": clips in `QuickShot/Beach` show as
   **@beach**. Captions come from file names, `#tags` included.
 - **New uploads show up.** Drop a clip into the folder from any device and it's slotted in
-  right after the one you're watching, within 30 seconds.
+  right after the one you're watching, within 30 seconds. On the box, Drop lets only the admin
+  add things unless the admin lets everyone, so by default the admin puts the clips in.
 - **Fast.** Only the clips around the one on screen have a player; the next ones load ahead.
   Portrait clips fill the screen, landscape ones fit.
 - **Sound** starts off (browsers only allow autoplay that way); one tap turns it on for the
   rest of the feed.
 
 QuickShot never touches the video files: the browser streams them straight from Drop, so it
-runs in 64 MB. If the folder doesn't exist yet, QuickShot offers to create it.
+runs in 64 MB. If the folder doesn't exist yet, QuickShot offers to create it (on the box
+that takes the admin, signed in to the admin panel, unless the admin let everyone change Drop).
 
 ## Comments, likes and views
 

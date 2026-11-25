@@ -9,9 +9,11 @@ the platform's Python or a venv with those installed.
 How it works:
 - Sets `DATA_DIR` to a fresh temp dir **before** importing `app`, so state files never touch
   `/data`.
-- Replaces `qs.drop_call` with `fake_drop`, which serves a fixed `ITEMS` list for
-  `GET /api/items` and fakes `POST /api/folders` (records created folders); any other Drop
-  call raises.
+- Replaces `qs.drop_call` with `fake_drop(method, path, body=None, cookie=None)`, which
+  serves a fixed `ITEMS` list for `GET /api/items` and fakes `POST /api/folders` (records
+  created folders); any other Drop call raises. With `drop_state["read_only"]` set it models
+  Drop on the box: `POST /api/folders` without the admin cookie (`ADMIN`, 32 `a`s) raises
+  `qs.DropRefused`.
 - Fixture tree: top-level folder `"quickshot "` (lower case + trailing space, testing the
   casefold/strip match) with clip C1 directly in it; `Beach` (C2) and `Beach/Sunsets` (C3,
   `download: false`); a nested folder also named `QuickShot` inside Beach (must be ignored);
@@ -26,7 +28,7 @@ How it works:
 | `test_page_uses_relative_urls` | The page references `"api/feed`, never `"/api/`, and has no absolute/protocol-relative/root-relative `src`/`href` |
 | `test_page_has_home_button` | Exactly one `a.am-home` with `href="../"` and `aria-label="AirplaneMode home"`; the header isn't `hidden` in the markup; the brand links to `./`, not out of the app |
 | `test_feed_is_the_quickshot_folder` | `drop_path`, folder id, clip set and order `[C2, C3, C1]` (newest first; no PDF, nothing outside), creators (`None`, `Beach`, `Beach` for the deeper clip), `download` false passthrough, zero counts |
-| `test_setup_creates_the_folder_once` | No folder -> `folder: null`; setup without header 403; creates `QuickShot` once; second call creates nothing |
+| `test_setup_creates_the_folder_once` | No folder -> `folder: null`; setup without header 403; creates `QuickShot` once; second call creates nothing. Then with a read-only Drop: a non-admin gets 403 with "admin" in the detail (Drop's message, not the 503); with the `am_admin` cookie set, the cookie reaches Drop and the folder is created |
 | `test_drop_down` | Drop raising -> 503 with "Drop" in the detail |
 | `test_likes_once_per_viewer` | Header required; idempotent like; two viewers = 2; `liked` per viewer in the feed; unlike response; bad viewer and bad clip id -> 400 |
 | `test_views_once_per_viewer_per_half_hour` | Dedupe per viewer; another viewer counts; ageing `recent` past `VIEW_GAP` counts again |

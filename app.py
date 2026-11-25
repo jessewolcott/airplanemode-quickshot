@@ -29,6 +29,7 @@ import re
 import secrets
 import unicodedata
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -65,20 +66,33 @@ app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
 
 # ---------------- Drop ----------------
-def _drop(method, path, body=None):
+class DropRefused(Exception):
+    """Drop said no (403): e.g. it's read-only and this person isn't the admin."""
+
+
+def _drop(method, path, body=None, cookie=None):
+    headers = {"Content-Type": "application/json", "X-Drop": "1"}
+    if cookie:   # the person's admin session, so Drop knows it's the admin asking
+        headers["Cookie"] = f"am_admin={cookie}"
     req = urllib.request.Request(f"{DROP_URL}{path}", method=method,
-                                 data=json.dumps(body).encode() if body is not None else None,
-                                 headers={"Content-Type": "application/json", "X-Drop": "1"})
-    with urllib.request.urlopen(req, timeout=5) as r:
-        return json.load(r)
+                                 data=json.dumps(body).encode() if body is not None else None, headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=5) as r:
+            return json.load(r)
+    except urllib.error.HTTPError as e:
+        if e.code == 403:
+            raise DropRefused(json.load(e).get("detail") or "Drop refused.") from e
+        raise
 
 
 drop_call = _drop        # tests replace this
 
 
-async def drop(method, path, body=None):
+async def drop(method, path, body=None, cookie=None):
     try:
-        return await anyio.to_thread.run_sync(drop_call, method, path, body)
+        return await anyio.to_thread.run_sync(lambda: drop_call(method, path, body, cookie=cookie))
+    except DropRefused as e:
+        raise HTTPException(403, str(e))
     except Exception as e:
         log.warning("Drop call %s %s failed: %s", method, path, e)
         raise HTTPException(503, "Can't reach Drop right now. Is it running?")
@@ -293,7 +307,9 @@ async def setup(request: Request):
     data = await drop("GET", "/api/items")
     folder = find_folder([i for i in data.get("items", []) if isinstance(i, dict)])
     if not folder:
-        folder = await drop("POST", "/api/folders", {"name": FOLDER, "parent": None})
+        # Drop is read-only for everyone but the admin (unless opened up): pass on their session
+        folder = await drop("POST", "/api/folders", {"name": FOLDER, "parent": None},
+                            cookie=admin_token if TOKEN_RE.match(admin_token := request.cookies.get("am_admin", "")) else None)
         log.info("created the %s folder in Drop", FOLDER)
     return {"folder": {"id": folder["id"], "name": folder["name"]}}
 

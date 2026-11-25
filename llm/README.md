@@ -10,13 +10,15 @@ for the next clip) for every phone on the travel router's hotspot, with no inter
 **no video files**. The clips are the `video/*` files in Drop's top-level folder named
 `QuickShot` (any capitalisation, subfolders included; the subfolder directly under QuickShot
 is shown as the clip's "creator", e.g. `QuickShot/Beach/x.mp4` -> `@beach`). The backend
-(`app.py`, FastAPI, ~385 lines) asks Drop for its item list and returns the feed; the browser
+(`app.py`, FastAPI, ~430 lines) asks Drop for its item list and returns the feed; the browser
 then streams each video **straight from Drop** (`../drop/api/files/{id}`), so QuickShot never
 handles video bytes and runs in 64 MB. What QuickShot does own is the shared social state:
 likes (once per viewer), views (once per viewer per clip per 30 minutes) and comments, kept in
 two JSON files in its `/data` volume. There are no accounts: each browser invents a private
 random viewer id. The AirplaneMode admin (recognised via the platform's `am_admin` session
-cookie) can delete any comment. The whole UI is one file, `static/index.html` (~450 lines of
+cookie) can delete any comment. Putting clips in, and creating the folder, are writes to
+Drop, which on the box only the admin may do unless the admin opened Drop up (platform
+decision 0026); QuickShot's setup forwards the caller's `am_admin` cookie to Drop for that. The whole UI is one file, `static/index.html` (~450 lines of
 HTML/CSS/vanilla JS).
 
 ## Files in this folder
